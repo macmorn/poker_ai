@@ -2,7 +2,6 @@ from typing import Dict, List, Set, Union
 
 from poker_ai.poker.evaluation.eval_card import EvaluationCard
 
-
 def get_all_suits() -> Set[str]:
     """Get set of suits that the card can take on."""
     return {"spades", "diamonds", "clubs", "hearts"}
@@ -186,3 +185,6 @@ class Card:
             raise NotImplementedError(f"Unrecognised dict {x}")
         return Card(rank=x["rank"], suit=x["suit"])
 
+    def to_trey(self) -> str:
+        """Turn trey compatible string."""
+        return f"{self._rank_to_char(self.rank)}{self.suit[0]}"
