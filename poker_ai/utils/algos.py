@@ -16,7 +16,7 @@ def rotate_list(l: List[Any], n: int):
     return l[n:] + l[:n]
 
 def round_to_nearest_n(val, n):
-    math.floor(val / n) * n
+    return math.floor(val / n) * n
 
 def rank_rounding(x:int):
     """Rounding function for treys rank."""
