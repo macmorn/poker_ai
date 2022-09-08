@@ -9,7 +9,7 @@ import enlighten
 
 from poker_ai.ai.agent import Agent
 from poker_ai import utils
-from poker_ai.games.short_deck import state
+from poker_ai.games.full_deck import state
 from poker_ai.ai.multiprocess.worker import Worker
 
 log = logging.getLogger("sync.server")
@@ -40,6 +40,7 @@ class Server:
         sync_serialise: bool = False,
         start_timestep: int = 1,
         n_processes: int = mp.cpu_count() - 1,
+        use_lut: bool = True,
     ):
         """Set up the optimisation server."""
         self._strategy_interval = strategy_interval
@@ -60,10 +61,14 @@ class Server:
         self._sync_discount = sync_discount
         self._sync_serialise = sync_serialise
         self._start_timestep = start_timestep
-        self._info_set_lut: state.InfoSetLookupTable = utils.io.load_info_set_lut(
+        if use_lut:
+            self._info_set_lut: state.InfoSetLookupTable = utils.io.load_info_set_lut(
             lut_path, pickle_dir
-        )
-        log.info("Loaded lookup table.")
+            )
+            log.info("Loaded lookup table.")
+        else:
+            self._info_set_lut = {}
+        
         self._job_queue: mp.JoinableQueue = mp.JoinableQueue(maxsize=n_processes)
         self._status_queue: mp.Queue = mp.Queue()
         self._logging_queue: mp.Queue = mp.Queue()
@@ -74,6 +79,7 @@ class Server:
         )
         if os.environ.get("TESTING_SUITE"):
             n_processes = 4
+        self._use_lut=use_lut
         self._workers: Dict[str, Worker] = self._start_workers(n_processes)
 
     def search(self):
@@ -227,6 +233,7 @@ class Server:
                 update_threshold=self._update_threshold,
                 dump_iteration=self._dump_iteration,
                 save_path=self._save_path,
+                use_lut=self._use_lut,
             )
             workers[worker.name] = worker
         for name, worker in workers.items():
@@ -247,5 +254,5 @@ class Server:
             all_statuses_obtained = len(self._worker_status) == len(self._workers)
             if all_idle and all_statuses_obtained:
                 break
-            time.sleep(sleep_secs)
+            #time.sleep(sleep_secs)
             log.info({w: s for w, s in self._worker_status.items() if s != "idle"})

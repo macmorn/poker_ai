@@ -74,8 +74,7 @@ def _safe_search(server: Server):
         server.search()
     except (KeyboardInterrupt, SystemExit):
         log.info(
-            "Early termination of program. Please wait for workers to "
-            "terminate."
+            "Early termination of program. Please wait for workers to " "terminate."
         )
     finally:
         server.terminate()
@@ -181,9 +180,7 @@ def resume(server_config_path: str):
 @click.option(
     "--lut_path",
     default=".",
-    help=(
-        "The path to the files for clustering the infosets."
-    ),
+    help=("The path to the files for clustering the infosets."),
 )
 @click.option(
     "--pickle_dir",
@@ -217,6 +214,16 @@ def resume(server_config_path: str):
     help="Do or don't synchronise the serialisation.",
 )
 @click.option("--nickname", default="", help="The nickname of the study.")
+@click.option(
+    "--use_lut/--no_lut",
+    default=False,
+    help="Do or don't use lut.",
+)
+@click.option(
+    "--full_deck/--short_deck",
+    default=False,
+    help="Train with full or short deck.",
+)
 def start(
     strategy_interval: int,
     n_iterations: int,
@@ -235,6 +242,8 @@ def start(
     sync_discount: bool,
     sync_serialise: bool,
     nickname: str,
+    use_lut: bool,
+    full_deck: bool,
 ):
     """Train agent from scratch."""
     # Write config to file, and create directory to save results in.
@@ -285,6 +294,7 @@ def start(
             sync_cfr=sync_cfr,
             sync_discount=sync_discount,
             sync_serialise=sync_serialise,
+            use_lut=use_lut,
         )
         _safe_search(server)
 

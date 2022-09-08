@@ -10,7 +10,7 @@ import numpy as np
 from poker_ai.ai import ai
 from poker_ai.ai.agent import Agent
 from poker_ai import utils
-from poker_ai.games.short_deck import state
+from poker_ai.games.full_deck import state
 
 
 class Worker(mp.Process):
@@ -32,6 +32,7 @@ class Worker(mp.Process):
         update_threshold: int,
         dump_iteration: int,
         save_path: Path,
+        use_lut: bool,
     ):
         """Construct the process, setup the state."""
         super().__init__(group=None, name=None, args=(), kwargs={}, daemon=None)
@@ -48,6 +49,7 @@ class Worker(mp.Process):
         self._update_threshold = update_threshold
         self._dump_iteration = dump_iteration
         self._save_path = Path(save_path)
+        self._use_lut = use_lut
         self._info_set_lut: state.InfoSetLookupTable = info_set_lut
         self._setup_new_game()
 
@@ -142,5 +144,5 @@ class Worker(mp.Process):
     def _setup_new_game(self):
         """Setup up new poker game."""
         self._state: state.ShortDeckPokerState = state.new_game(
-            self._n_players, self._info_set_lut,
+            self._n_players, self._info_set_lut, use_lut=self._use_lut
         )

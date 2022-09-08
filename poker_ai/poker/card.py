@@ -184,7 +184,3 @@ class Card:
         if set(x) != {"rank", "suit"}:
             raise NotImplementedError(f"Unrecognised dict {x}")
         return Card(rank=x["rank"], suit=x["suit"])
-
-    def to_trey(self) -> str:
-        """Turn trey compatible string."""
-        return f"{self._rank_to_char(self.rank)}{self.suit[0]}"

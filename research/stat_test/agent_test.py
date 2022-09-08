@@ -9,7 +9,7 @@ import datetime
 import numpy as np
 from scipy import stats
 
-from poker_ai.games.short_deck.state import ShortDeckPokerState, new_game
+from poker_ai.games.full_deck.state import ShortDeckPokerState, new_game
 from poker_ai.poker.card import Card
 
 
@@ -106,7 +106,8 @@ def agent_test(
                 else:
                     state: ShortDeckPokerState = new_game(
                         n_players,
-                        card_info_lut
+                        card_info_lut,
+                        use_lut=False
                     )
                     card_info_lut = state.card_info_lut
                 while True:
@@ -115,7 +116,7 @@ def agent_test(
                         EV = np.append(EV, state.payout[p_i])
                         break
                     if state.player_i == p_i:
-                        random_action, hero_count, hero_total_count = \
+                        action, hero_count, hero_total_count = \
                             _calculate_strategy(
                                 state,
                                 state.info_set,
@@ -124,12 +125,12 @@ def agent_test(
                                 total_count=hero_total_count
                         )
                     else:
-                        random_action, oc, otc = _calculate_strategy(
+                        action, oc, otc = _calculate_strategy(
                             state,
                             state.info_set,
                             opponent_strategy,
                         )
-                    state = state.apply_action(random_action)
+                    state = state.apply_action(action)
         EVs = np.append(EVs, EV.mean())
     t_stat = (EVs.mean() - 0) / (EVs.std() / np.sqrt(n_outer_iters))
     p_val = stats.t.sf(np.abs(t_stat), n_outer_iters - 1)
@@ -145,16 +146,16 @@ def agent_test(
     with open(save_path / 'results.yaml', "w") as stream:
         yaml.safe_dump(results_dict, stream=stream, default_flow_style=False)
 
-
 if __name__ == "__main__":
     agent_test(
-        hero_strategy_path="random_strategy/random_strategy.gz",
-        opponent_strategy_path="./_2020_07_02_20_38_58_085649/agent.joblib",
+        hero_strategy_path="./_2022_09_06_23_35_29_396494/agent.joblib",
+        opponent_strategy_path="./_2022_09_03_11_37_44_132436/agent.joblib",
         real_time_est=False,
         public_cards=[],
         action_sequence=None,
         n_inner_iters=25,
         n_outer_iters=75,
         hero_count=0,
-        hero_total_count=0
+        hero_total_count=0,
+        n_players=2
     )

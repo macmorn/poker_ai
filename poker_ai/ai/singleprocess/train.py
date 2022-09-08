@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import random
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 
 import click
 import joblib
@@ -124,4 +124,4 @@ def simple_search(
 
 
 if __name__ == "__main__":
-    train()
+    simple_search()

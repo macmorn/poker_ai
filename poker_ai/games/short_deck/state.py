@@ -46,20 +46,13 @@ def new_game(
         ShortDeckPokerPlayer(player_i=player_i, initial_chips=10000, pot=pot)
         for player_i in range(n_players)
     ]
-    if card_info_lut:
+    if card_info_lut == {}:
         # Don't reload massive files, it takes ages.
-        state = ShortDeckPokerState(
-            players=players,
-            load_card_lut=False,
-            **kwargs
-        )
+        state = ShortDeckPokerState(players=players, load_card_lut=False, **kwargs)
         state.card_info_lut = card_info_lut
     else:
         # Load massive files.
-        state = ShortDeckPokerState(
-            players=players,
-            **kwargs
-        )
+        state = ShortDeckPokerState(players=players, **kwargs)
     return state
 
 
@@ -236,8 +229,7 @@ class ShortDeckPokerState:
 
     @staticmethod
     def load_card_lut(
-        lut_path: str = ".",
-        pickle_dir: bool = False
+        lut_path: str = ".", pickle_dir: bool = False
     ) -> Dict[str, Dict[Tuple[int, ...], str]]:
         """
         Load card information lookup table.
@@ -278,7 +270,7 @@ class ShortDeckPokerState:
                     card_info_lut[betting_stage] = joblib.load(fp)
         elif lut_path:
             logger.info(f"Loading card from single file at path: {lut_path}")
-            card_info_lut = joblib.load(lut_path + '/card_info_lut.joblib')
+            card_info_lut = joblib.load(lut_path + "/card_info_lut.joblib")
         else:
             card_info_lut = {}
         return card_info_lut

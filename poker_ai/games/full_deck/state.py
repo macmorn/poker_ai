@@ -17,12 +17,15 @@ from poker_ai.games.short_deck.player import ShortDeckPokerPlayer
 from poker_ai.poker.pot import Pot
 from poker_ai.poker.table import PokerTable
 
+from poker_ai.clustering.preflop import make_starting_hand_lossless
+
+
 logger = logging.getLogger("poker_ai.games.short_deck.state")
 InfoSetLookupTable = Dict[str, Dict[Tuple[int, ...], str]]
 
 
 def new_game(
-    n_players: int, card_info_lut: InfoSetLookupTable = {}, **kwargs
+    n_players: int, card_info_lut: InfoSetLookupTable = {}, use_lut=True, **kwargs
 ) -> ShortDeckPokerState:
     """
     Create a new game of short deck poker.
@@ -46,9 +49,9 @@ def new_game(
         ShortDeckPokerPlayer(player_i=player_i, initial_chips=10000, pot=pot)
         for player_i in range(n_players)
     ]
-    if card_info_lut:
+    if use_lut == False:
         # Don't reload massive files, it takes ages.
-        state = ShortDeckPokerState(players=players, load_card_lut=False, **kwargs)
+        state = ShortDeckPokerState(players=players, use_lut=False, **kwargs)
         state.card_info_lut = card_info_lut
     else:
         # Load massive files.
@@ -68,9 +71,9 @@ class ShortDeckPokerState:
         players: List[ShortDeckPokerPlayer],
         small_blind: int = 50,
         big_blind: int = 100,
-        lut_path: str = ".",
+        lut_path: str = ".", 
         pickle_dir: bool = False,
-        load_card_lut: bool = True,
+        use_lut: bool = True,#if False passed hand group eval switches to eval based
     ):
         """Initialise state."""
         n_players = len(players)
@@ -80,7 +83,7 @@ class ShortDeckPokerState:
                 f"were provided."
             )
         self._pickle_dir = pickle_dir
-        if load_card_lut:
+        if use_lut:
             self.card_info_lut = self.load_card_lut(lut_path, self._pickle_dir)
         else:
             self.card_info_lut = {}
@@ -376,35 +379,53 @@ class ShortDeckPokerState:
     @property
     def info_set(self) -> str:
         """Get the information set for the current player."""
-        cards = sorted(
+        hand_cards = sorted(
             self.current_player.cards,
             key=operator.attrgetter("eval_card"),
             reverse=True,
         )
-        cards += sorted(
+        board_cards = sorted(
             self._table.community_cards,
             key=operator.attrgetter("eval_card"),
             reverse=True,
         )
-        if self._pickle_dir:
-            lookup_cards = tuple([card.eval_card for card in cards])
+        if self.card_info_lut=={}:
+
+            if board_cards == []:
+                #for an empty board we use a simple indexing function for the hand
+                rank=make_starting_hand_lossless(hand_cards, short_deck=False)
+            else:
+                #if there are cards on the board we    
+                hand_eval_cards = [card.eval_card for card in hand_cards]
+                board_eval_cards = [card.eval_card for card in board_cards]
+                rank=self._poker_engine.evaluator.evaluate(board_eval_cards, hand_eval_cards)
+                rank=utils.algos.rank_rounding(rank)
+
+            info_set_dict = {
+                "cards_cluster": rank,
+                "history": [
+                    {betting_stage: [str(action) for action in actions]}
+                    for betting_stage, actions in self._history.items()
+                ],
+            }
         else:
+            cards= hand_cards + board_cards
             lookup_cards = tuple(cards)
-        try:
-            cards_cluster = self.card_info_lut[self._betting_stage][lookup_cards]
-        except KeyError:
-            if self.betting_stage not in {"terminal", "show_down"}:
-                raise ValueError("You should have these cards in your lut.")
-            return "default info set, please ensure you load it correctly"
+            try:
+                cards_cluster = self.card_info_lut[self._betting_stage][lookup_cards]
+            except KeyError:
+                if self.betting_stage not in {"terminal", "show_down"}:
+                    raise ValueError("You should have these cards in your lut.")
+                return "default info set, please ensure you load it correctly"
         # Convert history from a dict of lists to a list of dicts as I'm
         # paranoid about JSON's lack of care with insertion order.
-        info_set_dict = {
-            "cards_cluster": cards_cluster,
-            "history": [
-                {betting_stage: [str(action) for action in actions]}
-                for betting_stage, actions in self._history.items()
-            ],
-        }
+            info_set_dict = {
+                "cards_cluster": cards_cluster,
+                "history": [
+                    {betting_stage: [str(action) for action in actions]}
+                    for betting_stage, actions in self._history.items()
+                ],
+            }
         return json.dumps(
             info_set_dict, separators=(",", ":"), cls=utils.io.NumpyJSONEncoder
         )

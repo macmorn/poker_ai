@@ -54,7 +54,7 @@ def make_starting_hand_lossless(starting_hand, short_deck = True) -> int:
 
     else:
         suits=set([card.suit for card in starting_hand])
-        ranks=frozenset([card.rank_int for card in starting_hand])
+        ranks=set([card.rank_int for card in starting_hand])
     if len(suits) == 1:
         suited = True
     else:

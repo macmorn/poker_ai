@@ -44,7 +44,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The starting hand rank from 2 through 14 for the deck we want to "
         "cluster. We recommend starting small."
-    )
+    ),
 )
 @click.option(
     "--high_card_rank",
@@ -52,7 +52,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The starting hand rank from 2 through 14 for the deck we want to "
         "cluster. We recommend starting small."
-    )
+    ),
 )
 @click.option(
     "--n_river_clusters",
@@ -60,7 +60,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The number of card information buckets we would like to create for "
         "the river. We recommend to start small."
-    )
+    ),
 )
 @click.option(
     "--n_turn_clusters",
@@ -68,7 +68,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The number of card information buckets we would like to create for "
         "the turn. We recommend to start small."
-    )
+    ),
 )
 @click.option(
     "--n_flop_clusters",
@@ -76,7 +76,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The number of card information buckets we would like to create for "
         "the flop. We recommend to start small."
-    )
+    ),
 )
 @click.option(
     "--n_simulations_river",
@@ -84,7 +84,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The number of opponent hand simulations we would like to run on the "
         "river. We recommend to start small."
-    )
+    ),
 )
 @click.option(
     "--n_simulations_turn",
@@ -92,7 +92,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The number of river card hand simulations we would like to run on the "
         "turn. We recommend to start small."
-    )
+    ),
 )
 @click.option(
     "--n_simulations_flop",
@@ -100,7 +100,7 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "The number of turn card hand simulations we would like to run on the "
         "flop. We recommend to start small."
-    )
+    ),
 )
 @click.option(
     "--save_dir",
@@ -108,8 +108,16 @@ from poker_ai.clustering.card_info_lut_builder import CardInfoLutBuilder
     help=(
         "Path to directory to save card info lookup table and betting stage "
         "centroids."
-    )
+    ),
 )
+@click.option(
+    "--naive",
+    default="False",
+    help=(
+        "If True, we will use the rounded hand strength from treys as the cluster basis."
+    ),
+)
+
 def cluster(
     low_card_rank: int,
     high_card_rank: int,
@@ -120,6 +128,7 @@ def cluster(
     n_simulations_turn: int,
     n_simulations_flop: int,
     save_dir: str,
+
 ):
     """Run clustering."""
     builder = CardInfoLutBuilder(
@@ -128,7 +137,7 @@ def cluster(
         n_simulations_flop,
         low_card_rank,
         high_card_rank,
-        save_dir
+        save_dir,
     )
     builder.compute(
         n_river_clusters,

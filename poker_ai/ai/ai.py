@@ -9,7 +9,7 @@ import joblib
 import numpy as np
 
 from poker_ai.ai.agent import Agent
-from poker_ai.games.short_deck.state import ShortDeckPokerState
+from poker_ai.games.full_deck.state import ShortDeckPokerState
 
 
 log = logging.getLogger("sync.ai")
