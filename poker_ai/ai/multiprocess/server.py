@@ -39,7 +39,7 @@ class Server:
         sync_discount: bool = False,
         sync_serialise: bool = False,
         start_timestep: int = 1,
-        n_processes: int = mp.cpu_count() - 1,
+        n_processes: int = mp.cpu_count(),
         use_lut: bool = True,
     ):
         """Set up the optimisation server."""
