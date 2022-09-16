@@ -336,7 +336,7 @@ def serialise(
         The locks for multiprocessing
     """
     # Load the shared strategy that we accumulate into.
-    agent_path = os.path.abspath(str(save_path / f"agent.joblib"))
+    agent_path = os.path.abspath(str(save_path / f"agent_{t}.joblib"))
     if os.path.isfile(agent_path):
         offline_agent = joblib.load(agent_path)
     else:
@@ -373,6 +373,7 @@ def serialise(
     offline_agent["pre_flop_strategy"] = copy.deepcopy(agent.strategy)
     if locks:
         locks["pre_flop_strategy"].release()
+    offline_agent["timestep"] = t
     joblib.dump(offline_agent, agent_path)
     # Dump the server state to file too, but first update a few bits of the
     # state so when we load it next time, we start from the right place in

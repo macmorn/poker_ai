@@ -1,0 +1,1 @@
+poker_ai train start --strategy_interval 200 --n_players 2 --n_iterations 20000 --lcfr_threshold 5000 --dump_iteration 500  --no_lut --full_deck --sync_update_strategy --sync_cfr --sync_discount --sync_serialise
