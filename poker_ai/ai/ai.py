@@ -7,15 +7,51 @@ from typing import Dict, List, Union
 
 import joblib
 import numpy as np
+from scipy.stats import norm
+
+
+import json
 
 from poker_ai.ai.agent import Agent
 from poker_ai.games.full_deck.state import ShortDeckPokerState
 
-
 log = logging.getLogger("sync.ai")
 
+def softmax_dict(x):
+    """Compute softmax values for each sets of scores in x."""
+    keys=list(x.keys())
+    values=list(x.values())
+    e_x = np.exp(values - np.max(values))
+    return dict(zip(keys, e_x / e_x.sum()))
+    
+def make_default_strategy(actions, state= None):
+    #TODO: Divide hand strength by n players to adjust for default win probability
+    if state != None:
+        info=json.loads(state.info_set)
+        if state.betting_stage == "pre_flop":
+            #adjust action based on hand strength number in preflop (range 0-91)
+            c=info["cards_cluster"]+1
+            hand_strength=c/95 #higher is weaker
+            if "raise" in actions:
+                strategy={"fold": norm.ppf(hand_strength)*2, "call": 2.0, "raise": norm.ppf(1-hand_strength)*2}
+            else:
+                strategy={"fold": norm.ppf(hand_strength)*2, "call": norm.ppf(1-hand_strength)*2}
+        else:
+            #adjust action based on hand strength number in postflop range(0-7462)
+            c=info["cards_cluster"]+1
+            hand_strength=c/7470    #higher is weaker
+            if "raise" in actions:
+                strategy={"fold": norm.ppf(hand_strength)*2, "call": 2.0, "raise": norm.ppf(1-hand_strength)*2}
+            else:
+                strategy={"fold": norm.ppf(hand_strength)*2, "call": norm.ppf(1-hand_strength)*2}
+        #finally, normalize the strategy to make sure it sums to 1    
+        strategy=softmax_dict(strategy)
+    else:
+        default_probability = 1 / len(actions)
+        strategy: Dict[str, float] = {action: default_probability for action in actions}
+    return strategy
 
-def calculate_strategy(this_info_sets_regret: Dict[str, float]) -> Dict[str, float]:
+def calculate_strategy(this_info_sets_regret: Dict[str, float],state=None) -> Dict[str, float]:
     """
     Calculate the strategy based on the current information sets regret.
 
@@ -33,15 +69,28 @@ def calculate_strategy(this_info_sets_regret: Dict[str, float]) -> Dict[str, flo
     """
     # TODO: Could we instanciate a state object from an info set?
     actions = this_info_sets_regret.keys()
-    regret_sum = sum([max(regret, 0) for regret in this_info_sets_regret.values()])
+    #TODO:(Anton) This calculation is weird, we only adjust if any regret is positive
+    #regret_sum = sum([max(regret, 0) for regret in this_info_sets_regret.values()])
+    #if regret_sum > 0:
+        #try with softmax
+        #strategy: Dict[str, float] = {
+        #    action: max(this_info_sets_regret[action], 0) / regret_sum
+        #    for action in actions
+        #}
+    #this only checks if any regret is not 0
+    regret_sum= sum([np.sqrt(regret**2) for regret in this_info_sets_regret.values()])
     if regret_sum > 0:
-        strategy: Dict[str, float] = {
-            action: max(this_info_sets_regret[action], 0) / regret_sum
-            for action in actions
-        }
+        strategy=softmax_dict({k: v/100 for k,v in this_info_sets_regret.items()})
     else:
-        default_probability = 1 / len(actions)
-        strategy: Dict[str, float] = {action: default_probability for action in actions}
+        strategy=make_default_strategy(actions, state)
+    if np.nan in strategy.values() or None in strategy.values():
+        print("nan in strategy")
+        print(strategy)
+        print(this_info_sets_regret)
+        print(actions)
+        print(regret_sum)
+        print(state)
+        raise ValueError
     return strategy
 
 
@@ -89,7 +138,7 @@ def update_strategy(
     elif ph == i:
         # calculate regret
         this_info_sets_regret = agent.regret.get(state.info_set, state.initial_regret)
-        sigma = calculate_strategy(this_info_sets_regret)
+        sigma = calculate_strategy(this_info_sets_regret,state)
         log.debug(f"Calculated Strategy for {state.info_set}: {sigma}")
         # choose an action based of sigma
         available_actions: List[str] = list(sigma.keys())
@@ -212,7 +261,7 @@ def cfr(
         return vo
     else:
         this_info_sets_regret = agent.regret.get(state.info_set, state.initial_regret)
-        sigma = calculate_strategy(this_info_sets_regret)
+        sigma = calculate_strategy(this_info_sets_regret,state)
         log.debug(f"Calculated Strategy for {state.info_set}: {sigma}")
         available_actions: List[str] = list(sigma.keys())
         action_probabilities: List[float] = list(sigma.values())
@@ -270,7 +319,7 @@ def cfrp(
     elif ph == i:
         # calculate strategy
         this_info_sets_regret = agent.regret.get(state.info_set, state.initial_regret)
-        sigma = calculate_strategy(this_info_sets_regret)
+        sigma = calculate_strategy(this_info_sets_regret,state)
         # TODO: Does updating sigma here (as opposed to after regret) miss out
         #       on any updates? If so, is there any benefit to having it up
         #       here?
@@ -302,7 +351,9 @@ def cfrp(
         return vo
     else:
         this_info_sets_regret = agent.regret.get(state.info_set, state.initial_regret)
-        sigma = calculate_strategy(this_info_sets_regret)
+        sigma = calculate_strategy(this_info_sets_regret,state)
+        if np.nan in sigma.values():
+            raise ValueError("Nan in strategy")
         available_actions: List[str] = list(sigma.keys())
         action_probabilities: List[float] = list(sigma.values())
         action: str = np.random.choice(available_actions, p=action_probabilities)
@@ -336,7 +387,7 @@ def serialise(
         The locks for multiprocessing
     """
     # Load the shared strategy that we accumulate into.
-    agent_path = os.path.abspath(str(save_path / f"agent_{t}.joblib"))
+    agent_path = os.path.abspath(str(save_path / f"agent.joblib"))
     if os.path.isfile(agent_path):
         offline_agent = joblib.load(agent_path)
     else:
