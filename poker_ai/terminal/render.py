@@ -75,15 +75,14 @@ def print_table(
     n_chips_in_pot: int = 0,
 ):
     left_player = players["left"]
-    middle_player = players["middle"]
     right_player = players["right"]
     for line in public_cards.lines:
         print(term.center(line))
     print(term.center(f"chips in pot: {n_chips_in_pot}"))
     print("\n\n")
     spacing = " " * n_spaces_between_cards
-    for l, m, r in zip(left_player.lines, middle_player.lines, right_player.lines):
-        print(term.center(f"{l}{spacing}{m}{spacing}{r}"))
+    for l, r in zip(left_player.lines, right_player.lines):
+        print(term.center(f"{l}{spacing}{r}"))
 
 
 def print_log(term: Terminal, log: AsciiLogger):

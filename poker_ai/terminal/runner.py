@@ -7,7 +7,7 @@ import joblib
 import numpy as np
 from blessed import Terminal
 
-from poker_ai.games.short_deck.state import new_game, ShortDeckPokerState
+from poker_ai.games.full_deck.state import new_game, ShortDeckPokerState
 from poker_ai.terminal.ascii_objects.card_collection import AsciiCardCollection
 from poker_ai.terminal.ascii_objects.player import AsciiPlayer
 from poker_ai.terminal.ascii_objects.logger import AsciiLogger
@@ -17,7 +17,7 @@ from poker_ai.utils.algos import rotate_list
 
 
 @click.command()
-@click.option('--lut_path', required=True, type=str)
+@click.option('--lut_path', required=False, type=str)
 @click.option('--pickle_dir', required=False, default=False, type=bool)
 @click.option('--agent', required=False, default="offline", type=str)
 @click.option('--strategy_path', required=False, default="", type=str)
@@ -48,19 +48,18 @@ def run_terminal_app(
     """
     term = Terminal()
     log = AsciiLogger(term)
-    n_players: int = 3
+    n_players: int = 2
     if debug_quick_start:
         state: ShortDeckPokerState = new_game(n_players, {}, load_card_lut=False)
     else:
         state: ShortDeckPokerState = new_game(
             n_players,
-            lut_path=lut_path,
-            pickle_dir=pickle_dir
+            use_lut=False,
         )
     n_table_rotations: int = 0
     selected_action_i: int = 0
-    positions = ["left", "middle", "right"]
-    names = {"left": "BOT 1", "middle": "BOT 2", "right": "HUMAN"}
+    positions = ["left", "right"]
+    names = {"left": "BOT 1", "right": "HUMAN"}
     if not debug_quick_start and agent in {"offline", "online"}:
         offline_strategy_dict = joblib.load(strategy_path)
         offline_strategy = offline_strategy_dict['strategy']
@@ -153,7 +152,7 @@ def run_terminal_app(
                             )
                         else:
                             state: ShortDeckPokerState = new_game(
-                                n_players, state.card_info_lut,
+                                n_players, state.card_info_lut,use_lut=False
                             )
                         n_table_rotations -= 1
                         if n_table_rotations < 0:
