@@ -8,9 +8,18 @@ import yaml
 import datetime
 import numpy as np
 from scipy import stats
+import re
 
 from poker_ai.games.full_deck.state import ShortDeckPokerState, new_game
 from poker_ai.poker.card import Card
+from poker_ai.ai.ai import make_default_strategy, softmax_dict
+
+def _get_index_neighbors(I:str, step: int = 1) -> List[str]:
+    """Get the index of the neighbors of the current player."""
+    up_neighbour= re.sub(r'\"cards_cluster\":(\d*),',lambda m: "\"cards_cluster\":"+str(int(m.group(1)) + step)+",", I)
+    down_neighbour= re.sub(r'\"cards_cluster\":(\d*),',lambda m: "\"cards_cluster\":"+str(int(m.group(1)) - step)+",", I)
+
+    return up_neighbour, down_neighbour
 
 
 def _calculate_strategy(
@@ -23,11 +32,25 @@ def _calculate_strategy(
     sigma = collections.defaultdict(
         lambda: collections.defaultdict(lambda: 1 / 3)
     )
+    # If strategy is empty, go to other block
+    #sigma[I] = strategy[I].copy()
     try:
-        # If strategy is empty, go to other block
-        sigma[I] = strategy[I].copy()
+        sigma[I] = strategy.get(I, {})
         if sigma[I] == {}:
-            raise KeyError
+            if state.betting_stage == "pre_flop":
+                up_I, down_I=_get_index_neighbors(I,1)
+                sigma[I] = strategy.get(up_I, {})
+                if sigma[I] == {}:
+                    sigma[I] = strategy.get(down_I, {})
+                    if sigma[I] == {}:
+                        raise KeyError
+            else:
+                up_I, down_I=_get_index_neighbors(I,100)
+                sigma[I] = strategy.get(up_I, {})
+                if sigma[I] == {}:
+                    sigma[I] = strategy.get(down_I, {})
+                    if sigma[I] == {}:
+                        raise KeyError
         norm = sum(sigma[I].values())
         for a in sigma[I].keys():
             sigma[I][a] /= norm
@@ -35,12 +58,13 @@ def _calculate_strategy(
             list(sigma[I].keys()), 1, p=list(sigma[I].values()),
         )[0]
     except KeyError:
+        #non-strategy choice
         if count is not None:
             count += 1
-        p = 1 / len(state.legal_actions)
-        probabilities = np.full(len(state.legal_actions), p)
-        a = np.random.choice(state.legal_actions, p=probabilities)
-        sigma[I] = {action: p for action in state.legal_actions}
+        sigma[I] = make_default_strategy(state.legal_actions, state)
+        a=np.random.choice(
+            list(sigma[I].keys()), 1, p=list(sigma[I].values()),
+        )[0]
     if total_count is not None:
         total_count += 1
     return a, count, total_count
@@ -85,14 +109,15 @@ def agent_test(
         )
         current_game_state: ShortDeckPokerState = state.load_game_state(
             opponent_strategy, action_sequence
-        )
+        ) 
 
     # TODO: Right now, this can only be used for loading states if the two
     # strategies are averaged. Even averaging strategies is risky. Loading a
     # game state should be used with caution. It will work only if the
     # probability of reach is identical across strategies. Use the average
     # strategy.
-
+    oc= 0
+    otc= 0
     card_info_lut = {}
     EVs = np.array([])
     for _ in trange(1, n_outer_iters):
@@ -129,6 +154,8 @@ def agent_test(
                             state,
                             state.info_set,
                             opponent_strategy,
+                            count=oc,
+                            total_count=otc
                         )
                     state = state.apply_action(action)
         EVs = np.append(EVs, EV.mean())
@@ -141,21 +168,23 @@ def agent_test(
         'Standard Deviation': float(EVs.std()),
         'N': int(len(EVs)),
         'Random Moves Hero': hero_count,
-        'Total Moves Hero': hero_total_count
+        'Total Moves Hero': hero_total_count,
+        'Random Moves Opponent': oc,
+        'Total Moves Opponent': otc
     }
     with open(save_path / 'results.yaml', "w") as stream:
         yaml.safe_dump(results_dict, stream=stream, default_flow_style=False)
 
 if __name__ == "__main__":
     agent_test(
-        hero_strategy_path="./_2022_09_06_23_35_29_396494/agent.joblib",
-        opponent_strategy_path="./_2022_09_03_11_37_44_132436/agent.joblib",
+        hero_strategy_path="./_2022_09_20_14_24_20_947002/81000/agent.joblib",
+        opponent_strategy_path="./_2022_09_20_14_24_20_947002/55000/agent.joblib",
         real_time_est=False,
         public_cards=[],
         action_sequence=None,
-        n_inner_iters=25,
-        n_outer_iters=75,
+        n_inner_iters=50,
+        n_outer_iters=100,
         hero_count=0,
         hero_total_count=0,
-        n_players=2
+        n_players=4
     )
