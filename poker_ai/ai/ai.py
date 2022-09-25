@@ -386,6 +386,7 @@ def serialise(
     locks : Dict[str, mp.synchronize.Lock]
         The locks for multiprocessing
     """
+    #TODO: Average instead of adding
     # Load the shared strategy that we accumulate into.
     agent_path = os.path.abspath(str(save_path / f"agent.joblib"))
     if os.path.isfile(agent_path):

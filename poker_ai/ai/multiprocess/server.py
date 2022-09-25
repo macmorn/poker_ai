@@ -40,7 +40,7 @@ class Server:
         sync_serialise: bool = False,
         start_timestep: int = 1,
         n_processes: int = mp.cpu_count(),
-        use_lut: bool = True,
+        use_lut: bool = False,
     ):
         """Set up the optimisation server."""
         self._strategy_interval = strategy_interval
