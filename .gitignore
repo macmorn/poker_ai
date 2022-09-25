@@ -282,3 +282,4 @@ dmypy.json
 
 /_*/
 .vscode
+bt_results*
