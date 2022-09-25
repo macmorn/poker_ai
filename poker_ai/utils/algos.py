@@ -21,4 +21,4 @@ def round_to_nearest_n(val, n):
 def rank_rounding(x:int):
     """Rounding function for treys rank."""
 
-    return round_to_nearest_n(x,10) 
+    return round_to_nearest_n(x,100) 
