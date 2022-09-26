@@ -10,7 +10,7 @@ import enlighten
 from poker_ai.ai.agent import Agent
 from poker_ai import utils
 from poker_ai.games.full_deck import state
-from poker_ai.ai.multiprocess.worker import Worker
+from poker_ai.ai.multiprocess.worker import Worker, AoFWorker
 
 log = logging.getLogger("sync.server")
 manager = mp.Manager()
@@ -241,7 +241,7 @@ class Server:
             log.info(f"started worker {name}")
         return workers
 
-    def _wait_until_all_workers_are_idle(self, sleep_secs=0.5):
+    def _wait_until_all_workers_are_idle(self, sleep_secs=0.1):
         """Blocks until all workers have finished their current job."""
         while True:
             # Read all status updates.
@@ -254,5 +254,99 @@ class Server:
             all_statuses_obtained = len(self._worker_status) == len(self._workers)
             if all_idle and all_statuses_obtained:
                 break
+            time.sleep(sleep_secs)
             #time.sleep(sleep_secs)
             log.info({w: s for w, s in self._worker_status.items() if s != "idle"})
+
+class AoFServer(Server):
+    """Server class to manage all workers optimising CFR algorithm."""
+
+    def __init__(
+        self,
+        strategy_interval: int,
+        n_iterations: int,
+        lcfr_threshold: int,
+        discount_interval: int,
+        prune_threshold: int,
+        c: int,
+        n_players: int,
+        dump_iteration: int,
+        update_threshold: int,
+        save_path: Union[str, Path],
+        lut_path: Union[str, Path] = ".",
+        pickle_dir: bool = False,
+        agent_path: Optional[Union[str, Path]] = None,
+        sync_update_strategy: bool = False,
+        sync_cfr: bool = False,
+        sync_discount: bool = False,
+        sync_serialise: bool = False,
+        start_timestep: int = 1,
+        n_processes: int = mp.cpu_count(),
+        use_lut: bool = False,
+    ):
+        """Set up the optimisation server."""
+        self._strategy_interval = strategy_interval
+        self._n_iterations = n_iterations
+        self._lcfr_threshold = lcfr_threshold
+        self._discount_interval = discount_interval
+        self._prune_threshold = prune_threshold
+        self._c = c
+        self._n_players = n_players
+        self._dump_iteration = dump_iteration
+        self._update_threshold = update_threshold
+        self._save_path = save_path
+        self._lut_path = lut_path
+        self._pickle_dir = pickle_dir
+        self._agent_path = agent_path
+        self._sync_update_strategy = sync_update_strategy
+        self._sync_cfr = sync_cfr
+        self._sync_discount = sync_discount
+        self._sync_serialise = sync_serialise
+        self._start_timestep = start_timestep
+        if use_lut:
+            self._info_set_lut: state.InfoSetLookupTable = utils.io.load_info_set_lut(
+            lut_path, pickle_dir
+            )
+            log.info("Loaded lookup table.")
+        else:
+            self._info_set_lut = {}
+        
+        self._job_queue: mp.JoinableQueue = mp.JoinableQueue(maxsize=n_processes)
+        self._status_queue: mp.Queue = mp.Queue()
+        self._logging_queue: mp.Queue = mp.Queue()
+        self._worker_status: Dict[str, str] = dict()
+        self._agent: Agent = Agent(agent_path)
+        self._locks: Dict[str, mp.synchronize.Lock] = dict(
+            regret=mp.Lock(), strategy=mp.Lock(), pre_flop_strategy=mp.Lock()
+        )
+        if os.environ.get("TESTING_SUITE"):
+            n_processes = 4
+        self._use_lut=use_lut
+        self._workers: Dict[str, AoFWorker] = self._start_workers(n_processes)
+
+    def _start_workers(self, n_processes: int) -> Dict[str, AoFWorker]:
+        """Begin the processes."""
+        workers = dict()
+        for _ in range(n_processes):
+            worker = AoFWorker(
+                job_queue=self._job_queue,
+                status_queue=self._status_queue,
+                logging_queue=self._logging_queue,
+                locks=self._locks,
+                agent=self._agent,
+                info_set_lut=self._info_set_lut,
+                n_players=self._n_players,
+                prune_threshold=self._prune_threshold,
+                c=self._c,
+                lcfr_threshold=self._lcfr_threshold,
+                discount_interval=self._discount_interval,
+                update_threshold=self._update_threshold,
+                dump_iteration=self._dump_iteration,
+                save_path=self._save_path,
+                use_lut=self._use_lut,
+            )
+            workers[worker.name] = worker
+        for name, worker in workers.items():
+            worker.start()
+            log.info(f"started worker {name}")
+        return workers

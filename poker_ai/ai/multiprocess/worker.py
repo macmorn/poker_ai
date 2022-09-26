@@ -4,14 +4,12 @@ import os
 from pathlib import Path
 from typing import Dict, Union
 
-import joblib
 import numpy as np
 
-from poker_ai.ai import ai
+from poker_ai.ai import ai, aof_ai
 from poker_ai.ai.agent import Agent
 from poker_ai import utils
-from poker_ai.games.full_deck import state
-
+from poker_ai.games import full_deck , aof
 
 class Worker(mp.Process):
     """Subclass of multiprocessing Process to handle agent optimisation."""
@@ -23,7 +21,7 @@ class Worker(mp.Process):
         logging_queue: mp.Queue,
         locks: Dict[str, mp.synchronize.Lock],
         agent: Agent,
-        info_set_lut: state.InfoSetLookupTable,
+        info_set_lut: full_deck.state.InfoSetLookupTable,
         n_players: int,
         prune_threshold: int,
         c: int,
@@ -50,7 +48,7 @@ class Worker(mp.Process):
         self._dump_iteration = dump_iteration
         self._save_path = Path(save_path)
         self._use_lut = use_lut
-        self._info_set_lut: state.InfoSetLookupTable = info_set_lut
+        self._info_set_lut: full_deck.state.InfoSetLookupTable = info_set_lut
         self._setup_new_game()
 
     def run(self):
@@ -143,6 +141,53 @@ class Worker(mp.Process):
 
     def _setup_new_game(self):
         """Setup up new poker game."""
-        self._state: state.ShortDeckPokerState = state.new_game(
+        self._state: full_deck.state.ShortDeckPokerState = full_deck.state.new_game(
             self._n_players, self._info_set_lut, use_lut=self._use_lut
         )
+
+class AoFWorker(Worker):
+    """Subclass of multiprocessing Process to handle agent optimisation."""
+
+    def _cfr(self, t, i):
+        """Search over random game and calculate the strategy."""
+        self._setup_new_game()
+        use_pruning: bool = np.random.uniform() < 0.95
+        pruning_allowed: bool = t > self._prune_threshold
+        if pruning_allowed and use_pruning:
+            aof_ai.cfrp(self._agent, self._state, i, t, self._c, self._locks)
+        else:
+            aof_ai.cfr(self._agent, self._state, i, t, self._locks)
+
+    def _update_strategy(self, t, i):
+        """Update the strategy."""
+        aof_ai.update_strategy(self._agent, self._state, i, t, self._locks)
+
+    def _serialise(self, t: int, server_state: Dict[str, Union[str, float, int, None]]):
+        """Write progress of optimising agent (and server state) to file."""
+        aof_ai.serialise(
+            agent=self._agent,
+            save_path=self._save_path,
+            t=t,
+            server_state=server_state,
+            locks=self._locks,
+        )
+
+    def _update_status(self, status, log_status: bool = True):
+        """Update the status of this worker by posting it to the server."""
+        if log_status:
+            self._logging_queue.put(
+                f"{self.name} updating status to {status}", block=True
+            )
+        self._status_queue.put((self.name, status), block=True)
+
+    def _setup_new_game(self):
+        """Setup up new poker game."""
+        #random number of players
+        #p=np.random.randint(2, 5)
+        #self._n_players=p
+        self._state: aof.state.AOFPokerState = aof.state.new_random_game(
+            self._n_players, self._info_set_lut, use_lut=self._use_lut
+        )
+        #self._state: aof.state.AOFPokerState = aof.state.new_random_game(
+        #    self._n_players, self._info_set_lut, use_lut=self._use_lut,
+        #)

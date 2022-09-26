@@ -61,11 +61,12 @@ import joblib
 import yaml
 
 from poker_ai import utils
-from poker_ai.ai.multiprocess.server import Server
+from poker_ai.ai.multiprocess.server import Server, AoFServer
 from poker_ai.ai.singleprocess.train import simple_search
 
 
 log = logging.getLogger("poker_ai.ai.runner")
+
 
 
 def _safe_search(server: Server):
@@ -82,7 +83,7 @@ def _safe_search(server: Server):
 
 
 @click.group()
-def train():
+def  train():
     """Train a poker AI."""
     pass
 
@@ -224,6 +225,11 @@ def resume(server_config_path: str):
     default=False,
     help="Train with full or short deck.",
 )
+@click.option(
+    "--aof/--regular",
+    default=False,
+    help="Train with AoF rules.",
+)
 def start(
     strategy_interval: int,
     n_iterations: int,
@@ -244,6 +250,7 @@ def start(
     nickname: str,
     use_lut: bool,
     full_deck: bool,
+    aof: bool,
 ):
     """Train agent from scratch."""
     # Write config to file, and create directory to save results in.
@@ -274,28 +281,49 @@ def start(
     else:
         log.info(
             "Mulitple processes specifed so using poker_ai.ai.multiprocess."
-            "server.Server for the optimisation."
+            " for the optimisation."
         )
         # Create the server that controls/coordinates the workers.
-        server = Server(
-            strategy_interval=strategy_interval,
-            n_iterations=n_iterations,
-            lcfr_threshold=lcfr_threshold,
-            discount_interval=discount_interval,
-            prune_threshold=prune_threshold,
-            c=c,
-            n_players=n_players,
-            dump_iteration=dump_iteration,
-            update_threshold=update_threshold,
-            save_path=save_path,
-            lut_path=lut_path,
-            pickle_dir=pickle_dir,
-            sync_update_strategy=sync_update_strategy,
-            sync_cfr=sync_cfr,
-            sync_discount=sync_discount,
-            sync_serialise=sync_serialise,
-            use_lut=use_lut,
-        )
+        if aof == False:
+            server = Server(
+                strategy_interval=strategy_interval,
+                n_iterations=n_iterations,
+                lcfr_threshold=lcfr_threshold,
+                discount_interval=discount_interval,
+                prune_threshold=prune_threshold,
+                c=c,
+                n_players=n_players,
+                dump_iteration=dump_iteration,
+                update_threshold=update_threshold,
+                save_path=save_path,
+                lut_path=lut_path,
+                pickle_dir=pickle_dir,
+                sync_update_strategy=sync_update_strategy,
+                sync_cfr=sync_cfr,
+                sync_discount=sync_discount,
+                sync_serialise=sync_serialise,
+                use_lut=use_lut,
+            )
+        else:
+                server = AoFServer(
+                strategy_interval=strategy_interval,
+                n_iterations=n_iterations,
+                lcfr_threshold=lcfr_threshold,
+                discount_interval=discount_interval,
+                prune_threshold=prune_threshold,
+                c=c,
+                n_players=n_players,
+                dump_iteration=dump_iteration,
+                update_threshold=update_threshold,
+                save_path=save_path,
+                lut_path=lut_path,
+                pickle_dir=pickle_dir,
+                sync_update_strategy=sync_update_strategy,
+                sync_cfr=sync_cfr,
+                sync_discount=sync_discount,
+                sync_serialise=sync_serialise,
+                use_lut=use_lut,
+            )
         _safe_search(server)
 
 

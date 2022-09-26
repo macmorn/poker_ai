@@ -52,3 +52,44 @@ class RandomPlayer(Player):
         action = self._random_move(players=game_state.table.players)
         logger.debug(f'{self.name} {action}')
         return PokerGameState(game_state, game_state.table, self, action, False)
+
+
+
+class RandomAOFPlayer(Player):
+    """Complete a dummy agent largely for development purposes.
+    Extends the `poker_ai.game.player.Player` class so inherits all of that
+    functionality.
+    The agent will make a move based on the probabilities set in the
+    constructor, so you can weight the chances of it taking various actions for
+    a given turn.
+    """
+
+    def __init__(
+            self,
+            name: str,
+            initial_chips: int,
+            pot: Pot,
+            fold_probability: float = 0.5,
+            raise_probability: float = 0.5):
+        """Construct the random player."""
+        super().__init__(name=name, initial_chips=initial_chips, pot=pot)
+        self.fold_probability = fold_probability
+        self.raise_probability = raise_probability
+
+        prob_sum = fold_probability + raise_probability
+        if not np.isclose(prob_sum, 1.0):
+            raise ValueError(f'Probabilities passed must sum to one.')
+
+    def _random_move(self, players: List[Player]):
+        """Make a random move."""
+        dice_roll = np.random.sample()*2
+        bound_1 = self.fold_probability
+        if 0.0 < dice_roll <= bound_1:
+            return self.fold()
+        else:
+            return self.raise_to(self.n_chips)
+
+    def take_action(self, game_state: PokerGameState) -> PokerGameState:
+        action = self._random_move(players=game_state.table.players)
+        logger.debug(f'{self.name} {action}')
+        return PokerGameState(game_state, game_state.table, self, action, False)

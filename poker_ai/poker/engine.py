@@ -190,6 +190,7 @@ class PokerEngine:
         actions in the order they were placed at the table. A betting round
         lasts until all players either call the highest placed bet or fold.
         """
+
         if self.n_players_with_moves > 1:
             self._bet_until_everyone_has_bet_evenly()
             logger.debug(
@@ -255,3 +256,22 @@ class PokerEngine:
             [x == active_complete_bets[0] for x in active_complete_bets]
         )
         return not all_bets_equal
+
+class AoFPokerEngine(PokerEngine):
+    """Alternative engine for AoF Tournament format in GGPoker.
+
+    Args:
+        PokerEngine (_type_): _description_
+    """
+    def _all_dealing_and_betting_rounds(self):
+        """Run through dealing of all cards and all rounds of betting."""
+        self.table.dealer.deal_private_cards(self.table.players)
+        self._betting_round(first_round=True)
+        self.table.dealer.deal_flop(self.table)
+        self.table.dealer.deal_turn(self.table)
+        self.table.dealer.deal_river(self.table)
+
+    @property
+    def n_players_with_moves(self) -> int:
+        """Returns the amount of players that can freely make a move."""
+        return sum(p.is_active for p in self.table.players)
