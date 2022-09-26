@@ -31,7 +31,7 @@ def make_default_strategy(actions, state= None):
         if state.betting_stage == "pre_flop":
             #adjust action based on hand strength number in preflop (range 0-91)
             c=info["cards_cluster"]+1
-            hand_strength=c/95 #higher is weaker
+            hand_strength=c/170 #higher is weaker
             if "raise" in actions:
                 strategy={"fold": norm.ppf(hand_strength)*2, "call": 2.0, "raise": norm.ppf(1-hand_strength)*2}
             else:
