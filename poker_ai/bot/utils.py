@@ -43,7 +43,7 @@ def make_high_contrast(image):
     return image
 
 
-def is_color_in_image(image, color : tuple, debug = False):
+def is_color_in_image(image, color : tuple, exact= False):
     """_summary_
 
     Args:
@@ -54,9 +54,15 @@ def is_color_in_image(image, color : tuple, debug = False):
     Returns:
         _type_: _description_
     """
-    lower = (color[0] - 5, color[1] - 5, color[2] - 5)
-    upper = (color[0] + 5, color[1] + 5, color[2] + 5)
-    mask = cv2.inRange(image, lower, upper)
+    if exact:
+        mask = cv2.inRange(image, color, color)
+    else:
+        lower = (color[0] - 5, color[1] - 5, color[2] - 5)
+        upper = (color[0] + 5, color[1] + 5, color[2] + 5)
+        #make sure never go below 0
+        if any([x < 0 for x in lower]):
+            lower = (0,0,0)
+        mask = cv2.inRange(image, lower, upper)
     if cv2.countNonZero(mask) > 0:
         return True
     else:
@@ -71,12 +77,15 @@ def do_OCR(image, lang='eng'):
     text = text.replace("\n", "")
     return text
 
-def get_play_order(dealer_index : int, num_players : int):
+def draw_bb_with_coordinates(image , bb : dict, text : str = None):
+    """Helper function to draw bounding box on screenshot.
+    For debugging purposes.
 
-    if dealer_index+1 == num_players:
-        order = [str(i) for i in range(0, num_players)]
+    Args:
+        bb (dict): bounding box dict
+    """
+    cv2.rectangle(image, bb["top_left"], bb["bottom_right"], 255, 2)
+    if text:
+        cv2.putText(image, text, bb["top_left"], cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
 
-    else:
-        order = [str(i) for i in range(dealer_index+1, num_players)] + [str(i) for i in range(0, dealer_index+1)]
-    
-    return order
+    return image
