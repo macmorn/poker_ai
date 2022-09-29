@@ -248,7 +248,7 @@ class AOFPokerState:
             # If we have finished betting, (i.e: All players have put the
             # same amount of chips in), then increment the stage of
             # betting.
-            if new_state.all_players_have_actioned:
+            if new_state.all_players_have_actioned or new_state.everyone_folded:
                 # No players left.
                 new_state._betting_stage = "terminal"
                 if not new_state._table.community_cards:
@@ -429,14 +429,14 @@ class AOFPokerState:
             rank=make_starting_hand_lossless(hand_cards, short_deck=False)
             try:
                 portion_bet=utils.algos.round_to_nearest_element(
-                    self.current_player.n_bet_chips/self.current_player.n_chips
+                    self.current_player.n_bet_chips/(self.current_player.n_chips+self.current_player.n_bet_chips)
                     )
             except:
                 portion_bet=0.69
             info_set_dict = {
                 "n_players" : self.n_players_started_round,
                 "cards_cluster": rank,
-                #"portion_bet": portion_bet, #TODO: This might be unnecessary as palying orderalready determines if I have the blind or not
+                "portion_bet": portion_bet, #TODO: This might be unnecessary as palying orderalready determines if I have the blind or not
                 "history": [
                     {betting_stage: [str(action) for action in actions]}
                     for betting_stage, actions in self._history.items()
@@ -500,3 +500,8 @@ class AOFPokerState:
         else:
             actions += [None]
         return actions
+
+    @property
+    def everyone_folded(self) -> bool:
+        """Returns whether everyone has folded."""
+        return not any([p.is_active for p in self.players if p != self.current_player])

@@ -25,18 +25,22 @@ def softmax_dict(x):
     e_x = np.exp(values - np.max(values))
     return dict(zip(keys, e_x / e_x.sum()))
     
-def make_default_strategy(actions, state= None):
+def make_default_strategy(actions, state= None, random= True):
     #TODO: Divide hand strength by n players to adjust for default win probability
-    if state != None:
-        info=json.loads(state.info_set)
-        #adjust action based on hand strength number in preflop (range 0-91)
-        c=info["cards_cluster"]+1
-        hand_strength=c/170 #higher is weaker
-        strategy={"fold": norm.ppf(hand_strength)*(len(state.players)/2), "all-in": norm.ppf(1-hand_strength)/(len(state.players)/2)}
-        strategy=softmax_dict(strategy)
-    else:
+    if random:
         default_probability = 1 / len(actions)
         strategy: Dict[str, float] = {action: default_probability for action in actions}
+    else:
+        if state != None:
+            info=json.loads(state.info_set)
+            #adjust action based on hand strength number in preflop (range 0-91)
+            c=info["cards_cluster"]+1
+            hand_strength=c/170 #higher is weaker
+            strategy={"fold": norm.ppf(hand_strength)*(len(state.players)/2), "all-in": norm.ppf(1-hand_strength)/(len(state.players)/2)}
+            strategy=softmax_dict(strategy)
+        else:
+            default_probability = 1 / len(actions)
+            strategy: Dict[str, float] = {action: default_probability for action in actions}
     return strategy
 
 def calculate_strategy(this_info_sets_regret: Dict[str, float],state=None) -> Dict[str, float]:
@@ -68,7 +72,7 @@ def calculate_strategy(this_info_sets_regret: Dict[str, float],state=None) -> Di
     #this only checks if any regret is not 0
     regret_sum= sum([np.sqrt(regret**2) for regret in this_info_sets_regret.values()])
     if regret_sum > 0:
-        strategy=softmax_dict({k: v/10000 for k,v in this_info_sets_regret.items()})
+        strategy=softmax_dict({k: v/100 for k,v in this_info_sets_regret.items()})
     else:
         strategy=make_default_strategy(actions, state)
     return strategy
@@ -231,7 +235,7 @@ def cfr(
             locks["regret"].acquire()
         this_info_sets_regret = agent.regret.get(state.info_set, state.initial_regret)
         for action in state.legal_actions:
-            this_info_sets_regret[action] += voa[action] - vo
+            this_info_sets_regret[action] = np.mean([(voa[action] - vo)]+[this_info_sets_regret[action]]*5)
         # Assign regret back to the shared memory.
         agent.regret[state.info_set] = this_info_sets_regret
         if locks:
@@ -321,7 +325,7 @@ def cfrp(
         this_info_sets_regret = agent.regret.get(state.info_set, state.initial_regret)
         for action in state.legal_actions:
             if explored[action]:
-                this_info_sets_regret[action] += voa[action] - vo
+                this_info_sets_regret[action] = np.mean([(voa[action] - vo)]+[this_info_sets_regret[action]]*5)
         # Update the master copy of the regret.
         agent.regret[state.info_set] = this_info_sets_regret
         if locks:
@@ -392,7 +396,7 @@ def serialise(
             }
         else:
             for action, probability in strategy.items():
-                offline_agent["strategy"][info_set][action] += probability
+                offline_agent["strategy"][info_set][action] = np.mean([[offline_agent["strategy"][info_set][action]]*5+[probability]])
     if locks:
         locks["regret"].acquire()
     offline_agent["regret"] = copy.deepcopy(agent.regret)

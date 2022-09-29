@@ -36,6 +36,19 @@ def _new_game(
     )
     return state, pot
 
+def test_aof_1():
+    """Test the aof poker game state works as expected."""
+    n_players = 4
+    state, _ = _new_game(n_players=n_players)
+    # Call for all players.
+    for i in range(n_players-1):
+        assert len(state.legal_actions) == 2
+        assert state.betting_stage == "pre_flop"
+        state = state.apply_action(action_str="fold")
+    assert state.betting_stage == "terminal"
+
+    
+
 def test_aof_2():
     """Test the aof poker game state works as expected."""
     n_players = 3
