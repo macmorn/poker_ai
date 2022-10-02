@@ -1,8 +1,7 @@
 from collections import defaultdict
-from curses import COLOR_BLACK
-from tkinter import W
 import cv2
 import pyautogui
+import mss
 import numpy as np
 import time
 import utils
@@ -33,12 +32,31 @@ PLAYERS_SECTION_REL= {
         "bottom_right":(0.6,0.95)
     },
     "chips_count":{
-        "top_left":(0.445,0.90),
-        "top_right":(0.56,0.90),
+        "top_left":(0.445,0.895),
+        "top_right":(0.56,0.895),
         "bottom_left":(0.445,0.96),
         "bottom_right":(0.56,0.96)
-    }
     },
+    "bet_amount":{
+        "top_left":(0.44,0.675),
+        "top_right":(0.54,0.675),
+        "bottom_left":(0.44,0.71),
+        "bottom_right":(0.54,0.71) 
+    },
+    "fold":{
+        "top_left":(0.74,0.91),
+        "top_right":(0.74,0.91),
+        "bottom_left":(0.74,0.91),
+        "bottom_right":(0.74,0.91) 
+    },
+    "all_in":{
+        "top_left":(0.91,0.91),
+        "top_right":(0.91,0.91),
+        "bottom_left":(0.91,0.91),
+        "bottom_right":(0.91,0.91) 
+    },
+    },
+    
     "1":{
     "playfield":{
         "top_left":(0.0,0.35),
@@ -49,8 +67,14 @@ PLAYERS_SECTION_REL= {
     "chips_count":{
         "top_left":(0.03,0.515),
         "top_right":(0.14,0.515),
-        "bottom_left":(0.03,0.57),
-        "bottom_right":(0.14,0.57)
+        "bottom_left":(0.03,0.555),
+        "bottom_right":(0.14,0.555)
+    },
+    "bet_amount":{
+        "top_left":(0.15,0.5),
+        "top_right":(0.22,0.5),
+        "bottom_left":(0.15,0.53),
+        "bottom_right":(0.22,0.53) 
     }
     },    
     "2":{
@@ -65,6 +89,12 @@ PLAYERS_SECTION_REL= {
         "top_right":(0.56,0.23),
         "bottom_left":(0.45,0.28),
         "bottom_right":(0.56,0.28)
+    },
+    "bet_amount":{
+        "top_left":(0.46,0.325),
+        "top_right":(0.55,0.325),
+        "bottom_left":(0.46,0.36),
+        "bottom_right":(0.55,0.36) 
     }
     },
     "3":{
@@ -77,8 +107,14 @@ PLAYERS_SECTION_REL= {
     "chips_count":{
         "top_left":(0.87,0.515),
         "top_right":(0.98,0.515),
-        "bottom_left":(0.87,0.57),
-        "bottom_right":(0.98,0.57)
+        "bottom_left":(0.87,0.555),
+        "bottom_right":(0.98,0.555)
+    },
+    "bet_amount":{
+        "top_left":(0.78,0.5),
+        "top_right":(0.84,0.5),
+        "bottom_left":(0.78,0.54),
+        "bottom_right":(0.84,0.54) 
     }
     }
 }
@@ -90,6 +126,7 @@ COLOR_WHITE=(242,242,242)
 class GGPokerClient:
     def __init__(self):
         self.assets=self._initialize_assets()
+        self.sct = mss.mss() #screenshot engine
         self.window_coordinates, self.scale=self._locate_window()
         self.width=self.window_coordinates["top_right"][0]-self.window_coordinates["top_left"][0]
         self.height=self.window_coordinates["bottom_left"][1]-self.window_coordinates["top_left"][1]
@@ -130,7 +167,7 @@ class GGPokerClient:
 
     def _update_window_screenshot(self):
 
-        window_screenshot_raw=pyautogui.screenshot(region=(self.window_coordinates["top_left"][0],self.window_coordinates["top_left"][1],self.width,self.height))
+        window_screenshot_raw=self.sct.grab(monitor=(self.window_coordinates["top_left"][0],self.window_coordinates["top_left"][1],self.width,self.height))
         self.window_screenshot_bgr=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_RGB2BGR)
         self.window_screenshot_grey=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_RGB2GRAY)
 
@@ -183,32 +220,32 @@ class GGPokerClient:
         print("Locating window...")
         while True:
             window_coordinates={}
-            for scale in [1.1,1.0,0.9 ]:
-                img=np.array(pyautogui.screenshot())
-                img=cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-                found=defaultdict(dict)
-                for ancor in ["bottom_left", "top_right", "top_left"]:
-                    scaled=utils.resize_image(self.assets[ancor], scale)
-                    result = cv2.matchTemplate(img, scaled, cv2.TM_CCOEFF_NORMED)
-                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-                    if max_val < threshold:
-                        if debug==True:
-                            print(f"Only {max_val} found for {ancor} at scale {scale}, retrying...")
-                        #break out of loop if any of the anchors is not found
-                        break
-                    else:
-                        found[ancor]["loc"]=max_loc
-                        found[ancor]["h"], found[ancor]["w"]=scaled.shape
-                if len(found) == 3:
-                        print(f"Window found at scale{scale}!")
-                        width=found["top_right"]["loc"][0]-found["top_left"]["loc"][0]
+            scale=1.0
+            img = np.array(self.sct.grab(self.sct.monitors[1]))
+            img=cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+            found=defaultdict(dict)
+            for ancor in ["bottom_left", "top_right", "top_left"]:
+                scaled=utils.resize_image(self.assets[ancor], scale)
+                result = cv2.matchTemplate(img, scaled, cv2.TM_CCOEFF_NORMED)
+                min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+                if max_val < threshold:
+                    if debug==True:
+                        print(f"Only {max_val} found for {ancor} at scale {scale}, retrying...")
+                    #break out of loop if any of the anchors is not found
+                    break
+                else:
+                    found[ancor]["loc"]=max_loc
+                    found[ancor]["h"], found[ancor]["w"]=scaled.shape
+            if len(found) == 3:
+                    print(f"Window found at scale{scale}!")
+                    width=found["top_right"]["loc"][0]-found["top_left"]["loc"][0]
 
-                        window_coordinates["top_left"]=found["top_left"]["loc"]
-                        window_coordinates["top_right"]=(found["top_right"]["loc"][0]+found["top_right"]["w"], found["top_right"]["loc"][1])
-                        window_coordinates["bottom_left"]=(found["bottom_left"]["loc"][0], found["bottom_left"]["loc"][1]+found["bottom_left"]["h"])
-                        window_coordinates["bottom_right"]=(window_coordinates["bottom_left"][0]+width, window_coordinates["bottom_left"][1])
-                        
-                        return window_coordinates, scale         
+                    window_coordinates["top_left"]=found["top_left"]["loc"]
+                    window_coordinates["top_right"]=(found["top_right"]["loc"][0]+found["top_right"]["w"], found["top_right"]["loc"][1])
+                    window_coordinates["bottom_left"]=(found["bottom_left"]["loc"][0], found["bottom_left"]["loc"][1]+found["bottom_left"]["h"])
+                    window_coordinates["bottom_right"]=(window_coordinates["bottom_left"][0]+width, window_coordinates["bottom_left"][1])
+                    
+                    return window_coordinates, scale         
             #return found corners and scale to be used to scale all other elements
         
 
@@ -268,6 +305,44 @@ class GGPokerClient:
                     active_players.append(k)
             return active_players
 
+    def get_player_bet_amount(self, player_i="0"):
+            """Function to get player bet.
+            """
+            bet = None
+            sc = self.window_screenshot_grey
+            section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["bet_amount"])
+            #make high contrast for easy detection
+            section=utils.make_high_contrast(section, adaptive=False)
+            #remove background
+            cv2.floodFill(section, None, (1,1), 0)
+            cv2.floodFill(section, None, (section.shape[1]-1,section.shape[0]-1), 0)
+            bet = utils.do_OCR(section)
+            bet = bet.replace("$", "")
+            bet = bet.replace("BB", "")
+            if bet == "":
+                return None
+            bet =float(bet)
+            return bet
+    
+    def get_player_chips_amount(self, player_i="0"):
+        """Function to get player bet.
+        """
+        chips = None
+        sc = self.window_screenshot_grey
+        section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["chips_count"])
+        #make high contrast for easy detection
+        section=utils.make_high_contrast(section, adaptive=False)
+        #remove background
+        cv2.floodFill(section, None, (1,1), 0)
+        cv2.floodFill(section, None, (section.shape[1]-1,section.shape[0]-1), 0)
+        chips = utils.do_OCR(section,psm=11 )
+        chips = chips.replace("$", "")
+        chips = chips.replace("BB", "")
+        if chips == "":
+            return None
+        chips =float(chips)
+        return chips
+
     def get_player_cards(self, player_i="0", threshold=0.75):
             """Function to get suited cards of player.
             """
@@ -322,6 +397,7 @@ class GGPokerClient:
             return max(found, key=found.get)
         else:
             return None
+    
     def _value_in_image(self,  image : dict, threshold=0.8):
         """Helper function to get value is in image.
         """
@@ -338,7 +414,12 @@ class GGPokerClient:
             return max(found, key=found.get)
         else:
             return None
-
+    
+    @property
+    def is_my_turn(self):
+        """Function to check if it is my turn.
+        """
+        return utils.match_over_threshold(self.window_screenshot_grey, self.assets["fold"], threshold=0.7)
     @property
     def _dealer(self):
         """Helper function to get dealer index.
@@ -350,7 +431,7 @@ class GGPokerClient:
             return None
     
     @property
-    def cards_dealt(self):
+    def my_cards_dealt(self):
         """Function to check if cards are dealt to my player.
         """
         card_1_crop=utils.crop_image_by_bbox(self.window_screenshot_bgr, self.board_map["0"]["card_1"])
@@ -368,7 +449,7 @@ class GGPokerClient:
         """Function to check if player is active.
         """
         if player_i=="0":
-            return self.cards_dealt
+            return self.my_cards_dealt
 
         else:
             template=self.assets["opp_cards"]
@@ -395,30 +476,57 @@ class GGPokerClient:
                     return "all_in"
                 elif self._is_asset_in_bbox(self.assets["all_in"], self.board_map[player_i]["playfield"], threshold=0.7):
                     return "all_in"
-                 
-                    
-
+                   
     def get_player_order(self):
         """Function to get player order, regardless of player number.
         """
         dealer=self._dealer
         active=self.get_active_players()
         if len(active)==2:
-            active[active.index(dealer):]+active[:active.index(dealer)]
-        #make triple len copy of list starting from dealer
-        extended=(active[active.index(dealer):]+active[:active.index(dealer)])*3
-        player_order = extended[3:3+len(active)]
-            
-        return player_order
+            player_order =active[active.index(dealer):]+active[:active.index(dealer)]
+            return player_order
+        else:
+            #make triple len copy of list starting from dealer
+            extended=(active[active.index(dealer):]+active[:active.index(dealer)])*3
+            player_order = extended[3:3+len(active)]
+                
+            return player_order
     
+    def take_action(self, action, click=True, time:float = 1.0):
+        """Function to take action.
+        """
+        VALID_ACTIONS=["fold", "all_in"]
+        if action in VALID_ACTIONS:
+            if click:
+                x=self.board_map["0"][action]["top_left"][0]+self.window_coordinates["top_left"][0]
+                y=self.board_map["0"][action]["top_left"][1]+self.window_coordinates["top_left"][1]
+                pyautogui.click(x=x,y=y, time=time)
+            else:
+                x=self.window_coordinates["top_left"][0]+20
+                y=self.window_coordinates["top_left"][1]+20
+                utils.human_cursor_click(x=x,y=y)
+                time.sleep(0.5)
+                if action=="fold":
+                    pyautogui.press("q")
+                elif action=="all_in":
+                    pyautogui.press("e")
+            time.sleep(1)
+            if self.is_my_turn:
+                Exception("Action not taken")
+            
+            
+        else:
+            Exception(f"Action not recognized, must be one of {VALID_ACTIONS}")
+
 if __name__ == "__main__":
     c=GGPokerClient()
     logging.info("GGPokerClient initialized")
     #TODO: see if I have cards, then determine order, then check in order if players are acting unti an action is detected, then construct history for me once its my turn
     while True:
         logging.info("Waiting for new round")
-        c._update_window_screenshot()
-        if c.cards_dealt:
+        action=input("Enter action: ")
+        c.take_action(action, click=True)
+        """
             #get player order
             logging.info("Round has started")
             player_order=c.get_player_order()
@@ -437,7 +545,8 @@ if __name__ == "__main__":
             hand=[Card( rank=player_cars["card_1"]["rank"],suit=player_cars["card_1"]["suit"]), Card(rank=player_cars["card_2"]["rank"],suit=player_cars["card_2"]["suit"])]
             logging.info(hand)
             logging.info(f"Card rank: {round((make_starting_hand_lossless(hand,short_deck=False)/169),2)}")
-            while c.cards_dealt==True:
+            while c.my_cards_dealt==True:
                 c._update_window_screenshot()
         else:
             continue
+            """
