@@ -25,7 +25,7 @@ def rank_rounding(x:int):
 
     return round_to_nearest_n(x,100) 
 
-def round_to_nearest_element(num,rangeList= [0.0,0.2,0.4,0.6,0.8]):
+def round_to_nearest_element(num,rangeList= [0.0,0.1,0.3,0.5,0.7]):
     beg = bisect.bisect_right(rangeList,num)
     if rangeList[beg-1] == num: #Handle Perfect Hit Edge Case
         return num

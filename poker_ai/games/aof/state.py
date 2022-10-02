@@ -426,11 +426,12 @@ class AOFPokerState:
         if self.card_info_lut=={}:
 
             #for an empty board we use a simple indexing function for the hand
-            rank=make_starting_hand_lossless(hand_cards, short_deck=False)
+            rank=utils.algos.round_to_nearest_n(make_starting_hand_lossless(hand_cards, short_deck=False),5)
             try:
+                #makes a ration of how much of the bet I already matched
                 portion_bet=utils.algos.round_to_nearest_element(
-                    self.current_player.n_bet_chips/(self.current_player.n_chips+self.current_player.n_bet_chips)
-                    )
+                    self.current_player.n_bet_chips/min(max(self._poker_engine.all_bets),self.current_player.n_chips)
+                )
             except:
                 portion_bet=0.69
             info_set_dict = {

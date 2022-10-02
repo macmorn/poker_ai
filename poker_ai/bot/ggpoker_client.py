@@ -8,7 +8,6 @@ import utils
 import logging
 
 from poker_ai.poker.card import Card
-from poker_ai.clustering.preflop import make_starting_hand_lossless
 
 PLAYERS_SECTION_REL= {
     "0":{
@@ -34,8 +33,8 @@ PLAYERS_SECTION_REL= {
     "chips_count":{
         "top_left":(0.445,0.895),
         "top_right":(0.56,0.895),
-        "bottom_left":(0.445,0.96),
-        "bottom_right":(0.56,0.96)
+        "bottom_left":(0.445,0.95),
+        "bottom_right":(0.56,0.95)
     },
     "bet_amount":{
         "top_left":(0.44,0.675),
@@ -141,6 +140,7 @@ class AoF_Client(GGPoker_Client):
         self.height=self.window_coordinates["bottom_left"][1]-self.window_coordinates["top_left"][1]
         self.board_map=self._intialize_board_map()
         self._update_window_screenshot()
+        self.current_round=0
     
     def survey_field(self):
         pass
@@ -175,10 +175,13 @@ class AoF_Client(GGPoker_Client):
         cv2.waitKey()
 
     def _update_window_screenshot(self):
-
-        window_screenshot_raw=self.sct.grab(monitor=(self.window_coordinates["top_left"][0],self.window_coordinates["top_left"][1],self.width,self.height))
-        self.window_screenshot_bgr=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_RGB2BGR)
-        self.window_screenshot_grey=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_RGB2GRAY)
+        monitor={"top":self.window_coordinates["top_left"][1],
+        "left":self.window_coordinates["top_left"][0],
+        "width":self.width,
+        "height":self.height}
+        window_screenshot_raw=self.sct.grab(monitor=monitor)
+        self.window_screenshot_bgr=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_BGRA2BGR)
+        self.window_screenshot_grey=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_BGRA2GRAY)
 
     def _initialize_assets(self):
         assets = {}
@@ -328,8 +331,9 @@ class AoF_Client(GGPoker_Client):
             bet = utils.do_OCR(section)
             bet = bet.replace("$", "")
             bet = bet.replace("BB", "")
+            bet = bet.replace(",", "")
             if bet == "":
-                return None
+                return 0
             bet =float(bet)
             return bet
     
@@ -347,15 +351,16 @@ class AoF_Client(GGPoker_Client):
         chips = utils.do_OCR(section,psm=11 )
         chips = chips.replace("$", "")
         chips = chips.replace("BB", "")
+        chips = chips.replace(",", "")
         if chips == "":
-            return None
+            return 0
         chips =float(chips)
         return chips
 
     def get_player_cards(self, player_i="0", threshold=0.75):
             """Function to get suited cards of player.
             """
-            suited_cards=defaultdict(dict)
+            suited_cards=[]
             for k, v in self.board_map[player_i].items():
                 if k=="card_1" or k=="card_2":
                     section_color=utils.crop_image_by_bbox(self.window_screenshot_bgr, v)
@@ -368,6 +373,7 @@ class AoF_Client(GGPoker_Client):
                         section_contrast=utils.rotate_image_by_angle(section_contrast, 5)
                     if k == "card_2":
                         section_contrast=utils.rotate_image_by_angle(section_contrast, -5)
+                    #extract rank
                     rank=self._value_in_image(section_contrast, threshold=threshold)
                     if rank:                       
                         if is_red:
@@ -375,10 +381,11 @@ class AoF_Client(GGPoker_Client):
                         else:
                             suit=self._suit_in_image(section_contrast, threshold=threshold, subset="black")
                         if suit:
-                                suited_cards[k]["suit"]=suit
-                                suited_cards[k]["rank"]=self._value_in_image(section_contrast, threshold=threshold)
+                            suited_cards.append({"rank":rank, "suit":suit})
+            
+            #transform to model card representation
+            suited_cards=[Card(rank=c["rank"], suit=c["suit"]) for c in suited_cards]
             if len(suited_cards)==2:
-
                 return suited_cards
             elif len(suited_cards)==1:
                 print("Only one card found", suited_cards)
@@ -429,6 +436,7 @@ class AoF_Client(GGPoker_Client):
         """Function to check if it is my turn.
         """
         return utils.match_over_threshold(self.window_screenshot_grey, self.assets["fold"], threshold=0.7)
+    
     @property
     def _dealer(self):
         """Helper function to get dealer index.
@@ -449,7 +457,7 @@ class AoF_Client(GGPoker_Client):
         fist_dealt=utils.is_color_in_image(card_1_crop, COLOR_WHITE, exact=True) or utils.is_color_in_image(card_2_crop, COLOR_GREY, exact=True)
         second_dealt=utils.is_color_in_image(card_2_crop, COLOR_WHITE, exact=True) or utils.is_color_in_image(card_2_crop, COLOR_GREY, exact=True)
         
-        if fist_dealt and second_dealt:
+        if fist_dealt or second_dealt:
             return True
         else:
             return False
@@ -467,24 +475,27 @@ class AoF_Client(GGPoker_Client):
         else:
             return False
 
-    def check_player_action(self, player_i, wait_n_seconds=10):
+    def check_player_action(self, player_i, wait_n_seconds=8):
         """Function to check if player is acting.
         """
         start=time.time()
 
         while True:
 
-            current_time=time.time()
-            if (current_time-start)>wait_n_seconds:
+            elapsed=time.time()-start
+            if elapsed>wait_n_seconds:
                 Exception ("Player action not found")
             else:
                 self._update_window_screenshot()
                 if self.is_player_active(player_i) == False:
                     return "fold"         
                 elif self._is_asset_in_bbox(self.assets["call"], self.board_map[player_i]["playfield"], threshold=0.7):
-                    return "all_in"
+                    return "raise"
                 elif self._is_asset_in_bbox(self.assets["all_in"], self.board_map[player_i]["playfield"], threshold=0.7):
-                    return "all_in"
+                    return "raise"
+                else:
+                    continue
+                    
                    
     def get_player_order(self):
         """Function to get player order, regardless of player number.
@@ -532,35 +543,25 @@ class AoF_Client(GGPoker_Client):
         else:
             Exception(f"Action not recognized, must be one of {VALID_ACTIONS}")
 
+    def wait_for_next_round(self):
+        """Function to wait for next round.
+        Checks if the dealer changed.
+        """
+        while True:
+            dealer=self._dealer
+            time.sleep(0.2)
+            self._update_window_screenshot()
+            
+            if (dealer !=self._dealer) & (self._dealer != None):
+                break
+            else:
+                continue
+
 if __name__ == "__main__":
     c=AoF_Client()
     logging.info("GGPokerClient initialized")
     #TODO: see if I have cards, then determine order, then check in order if players are acting unti an action is detected, then construct history for me once its my turn
     while True:
         logging.info("Waiting for new round")
-        action=input("Enter action: ")
-        c.take_action(action, click=True)
-        """
-            #get player order
-            logging.info("Round has started")
-            player_order=c.get_player_order()
-            logging.info(f"Player order:{player_order}")
-            for i in player_order:
-                if i=="0":
-                    break
-                action=c.check_player_action(i)
-                logging.info(action)
-                
-            #ideally parallelize this
-            player_cars=c.get_player_cards()
-            while len(player_cars)!=2:
-                c._update_window_screenshot()
-                player_cars=c.get_player_cards()
-            hand=[Card( rank=player_cars["card_1"]["rank"],suit=player_cars["card_1"]["suit"]), Card(rank=player_cars["card_2"]["rank"],suit=player_cars["card_2"]["suit"])]
-            logging.info(hand)
-            logging.info(f"Card rank: {round((make_starting_hand_lossless(hand,short_deck=False)/169),2)}")
-            while c.my_cards_dealt==True:
-                c._update_window_screenshot()
-        else:
-            continue
-            """
+        c.wait_for_next_round()
+        logging.info("New round detected")
