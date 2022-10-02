@@ -123,8 +123,17 @@ COLOR_RED=(21,21,203)
 COLOR_GREY=(143,143,143)
 COLOR_WHITE=(242,242,242)
 
-class GGPokerClient:
+class GGPoker_Client:
     def __init__(self):
+        #TODO: window manager goes here
+        pass
+
+class AoF_Client(GGPoker_Client):
+    """This client if for the AoF game on GGPoker.
+    """
+
+    def __init__(self):
+        super().__init__()
         self.assets=self._initialize_assets()
         self.sct = mss.mss() #screenshot engine
         self.window_coordinates, self.scale=self._locate_window()
@@ -496,11 +505,16 @@ class GGPokerClient:
         """Function to take action.
         """
         VALID_ACTIONS=["fold", "all_in"]
+        if time > 10.0:
+            self.log.error("Time is too long")
+            time=4.20
+
+
         if action in VALID_ACTIONS:
             if click:
                 x=self.board_map["0"][action]["top_left"][0]+self.window_coordinates["top_left"][0]
                 y=self.board_map["0"][action]["top_left"][1]+self.window_coordinates["top_left"][1]
-                pyautogui.click(x=x,y=y, time=time)
+                utils.human_cursor_click(x=x,y=y, time=time)
             else:
                 x=self.window_coordinates["top_left"][0]+20
                 y=self.window_coordinates["top_left"][1]+20
@@ -519,7 +533,7 @@ class GGPokerClient:
             Exception(f"Action not recognized, must be one of {VALID_ACTIONS}")
 
 if __name__ == "__main__":
-    c=GGPokerClient()
+    c=AoF_Client()
     logging.info("GGPokerClient initialized")
     #TODO: see if I have cards, then determine order, then check in order if players are acting unti an action is detected, then construct history for me once its my turn
     while True:
