@@ -2,7 +2,7 @@ import json
 import time
 import numpy as np
 from ggpoker_client import AoF_Client
-
+import click
 from poker_ai.poker.card import Card
 from poker_ai.clustering.preflop import make_starting_hand_lossless
 from poker_ai.utils import algos, io
@@ -106,9 +106,9 @@ class AoFModel:
 
 
 
-def start(models_path: str):
+def start(models_path: str, scale = 1.0):
     model=AoFModel(path_model=models_path)
-    client = AoF_Client()
+    client = AoF_Client(scale= scale)
 
     while True:
         play_aof_sit_go_holdem(client, model)
@@ -177,8 +177,11 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                 #get action
                 action= model._to_probability(strat)
                 logging.info(f"Action: {action}")
+                
+                if click.confirm(f'Do you want to {action}?', default=True):
+                    client.take_action(action)
 
 
 if __name__ == "__main__":
-    start(models_path="poker_ai/bot/models/aof_cumm_round_5.joblib")
+    start(models_path="poker_ai/bot/models/aof_cumm_round_5.joblib", scale = 1.0)
     #SHOULD I MAYBE JSUT COMBINE ALL SIMILAR MODELS AND INFERENCE THEM BY n_palyers?

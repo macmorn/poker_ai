@@ -131,11 +131,13 @@ class AoF_Client(GGPoker_Client):
     """This client if for the AoF game on GGPoker.
     """
 
-    def __init__(self):
+    def __init__(self, scale=1.0,quadrant=None):
         super().__init__()
+        self.scale=scale
+        self.quadrant=quadrant #TODO: use this in finding window coordinates
         self.assets=self._initialize_assets()
         self.sct = mss.mss() #screenshot engine
-        self.window_coordinates, self.scale=self._locate_window()
+        self.window_coordinates =self._locate_window()
         self.width=self.window_coordinates["top_right"][0]-self.window_coordinates["top_left"][0]
         self.height=self.window_coordinates["bottom_left"][1]-self.window_coordinates["top_left"][1]
         self.board_map=self._intialize_board_map()
@@ -217,7 +219,7 @@ class AoF_Client(GGPoker_Client):
                 raise ValueError(f"Could not load asset {key}")
         return assets
 
-    def _locate_window(self, threshold=0.7, debug=True):
+    def _locate_window(self, threshold=0.7, scale= 1.0, debug=False):
         """Function to find edges of poker window. 
         Relies on assets of corner elements, scale sensitive so element screenshots should be retaken on target device.
 
@@ -232,7 +234,6 @@ class AoF_Client(GGPoker_Client):
         print("Locating window...")
         while True:
             window_coordinates={}
-            scale=1.0
             img = np.array(self.sct.grab(self.sct.monitors[1]))
             img=cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
             found=defaultdict(dict)
@@ -242,14 +243,14 @@ class AoF_Client(GGPoker_Client):
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
                 if max_val < threshold:
                     if debug==True:
-                        print(f"Only {max_val} found for {ancor} at scale {scale}, retrying...")
+                        logging.debug(f"Only {max_val} found for {ancor} at scale {scale}, retrying...")
                     #break out of loop if any of the anchors is not found
                     break
                 else:
                     found[ancor]["loc"]=max_loc
                     found[ancor]["h"], found[ancor]["w"]=scaled.shape
             if len(found) == 3:
-                    print(f"Window found at scale{scale}!")
+                    logging.info(f"Window found at scale{scale}!")
                     width=found["top_right"]["loc"][0]-found["top_left"]["loc"][0]
 
                     window_coordinates["top_left"]=found["top_left"]["loc"]
@@ -257,7 +258,7 @@ class AoF_Client(GGPoker_Client):
                     window_coordinates["bottom_left"]=(found["bottom_left"]["loc"][0], found["bottom_left"]["loc"][1]+found["bottom_left"]["h"])
                     window_coordinates["bottom_right"]=(window_coordinates["bottom_left"][0]+width, window_coordinates["bottom_left"][1])
                     
-                    return window_coordinates, scale         
+                    return window_coordinates        
             #return found corners and scale to be used to scale all other elements
         
 
