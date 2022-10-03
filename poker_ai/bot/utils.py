@@ -1,6 +1,7 @@
 import cv2
 import pytesseract
 from pyclick import HumanClicker
+import time
 
 def resize_image(image, scale_percent):
     width = int(image.shape[1] * scale_percent)
@@ -37,12 +38,12 @@ def match_over_threshold(image, template, threshold, debug = False):
 
 
 
-def make_high_contrast(image, adaptive= True):
+def make_high_contrast(image, adaptive= True, cutoff= 190):
     if adaptive:
         image = cv2.adaptiveThreshold(image, 255,
         cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 10)
     else:
-        ret, image = cv2.threshold(image, 68, 255, cv2.THRESH_BINARY)
+        ret, image = cv2.threshold(image, cutoff, 255, cv2.THRESH_BINARY)
     return image
 
 
@@ -75,9 +76,11 @@ def crop_image_by_bbox(image, bbox):
 
     return image[bbox["top_left"][1]:bbox["bottom_left"][1], bbox["top_left"][0]:bbox["top_right"][0]]
 
-def do_OCR(image, lang='eng', psm=11):
+def do_OCR(image, lang='eng', psm=11, debug=False):
     text=pytesseract.image_to_string(image, lang=lang, config=f'--psm {psm} -c tessedit_char_whitelist=,.0123456789$')
     text = text.replace("\n", "")
+    if debug:
+        cv2.imwrite(f"debug/ocr/bet_{text}_{time.time()}.png", image)
     return text
 
 def draw_bb_with_coordinates(image , bb : dict, text : str = None):

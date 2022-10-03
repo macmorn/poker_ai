@@ -100,9 +100,14 @@ class AoFModel:
         query= json.dumps(
             query_dict, separators=(",", ":"), cls=io.NumpyJSONEncoder
         )
+        logging.info(f"Query: {query}")
         #return strategy
-        return self.model[query]
-        
+        try:
+            return self.model[query]
+        except:
+            logging.error("Could not find strategy for query, saving query for analysis")
+            with open("debug/failed_queries.txt", "w") as f:
+                f.write(query+"\n")
 
 
 
@@ -123,7 +128,7 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
             client.current_round+=1
             logging.info(f"Round {client.current_round} has started")
             #wait for deal animation to finish
-            time.sleep(1.5)
+            time.sleep(2)
             client._update_window_screenshot()
             #get player orders
             player_order=client.get_player_order()
@@ -137,8 +142,12 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                 #if player didnt fold add the bet to the list
                 if action!="fold":
                     client._update_window_screenshot()
-                    bets.append(client.get_player_bet_amount(i))
-                    logging.info(f"Player {i} bet {bets[-1]}")
+                    bet=client.get_player_bet_amount(i,debug=True)
+                    if bet==0:
+                        logging.error("Could not get bet amount")
+                    else:
+                        bets.append(bet)
+                    #logging.info(f"Player {i} bet {bets[-1]}")
                 logging.info(action)
                 preflop_history.append(action)
             logging.info(f"Preflop history: {preflop_history}")    
@@ -154,8 +163,8 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                 logging.info(f"My cards: {hand}")
                 #get my bet and pot for the current round
                 client._update_window_screenshot()
-                my_bet=client.get_player_bet_amount("0")
-                my_pot=client.get_player_chips_amount("0")
+                my_bet=client.get_player_bet_amount("0", debug=True)
+                my_pot=client.get_player_chips_amount("0", debug=True)
                 logging.info(f"My bet: {my_bet}")
                 logging.info(f"My pot: {my_pot}")
                 #get max bet
@@ -163,6 +172,7 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                     max_bet=max(bets)
                 else:
                     max_bet=my_pot
+                logging.info(f"Bets: {bets}")    
                 logging.info(f"Max bet: {max_bet}")
                 #get number of players
                 n_players= len(player_order)
@@ -179,6 +189,10 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                 logging.info(f"Action: {action}")
                 
                 if click.confirm(f'Do you want to {action}?', default=True):
+                    #hotfix
+                    if action=="all-in":
+                        action="all_in"
+
                     client.take_action(action)
 
 

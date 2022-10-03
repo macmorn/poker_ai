@@ -175,6 +175,12 @@ class AoF_Client(GGPoker_Client):
 
         cv2.imshow("window", self.window_screenshot_grey)
         cv2.waitKey()
+    
+    def _save_bb_image(self, bb, name):
+        """Helper function that saves the image with the bounding boxes.
+        For debugging purposes."""
+        image=utils.crop_image_by_bbox(self.window_screenshot_bgr, bb)
+        cv2.imwrite(f"{name}.png", image)
 
     def _update_window_screenshot(self):
         monitor={"top":self.window_coordinates["top_left"][1],
@@ -213,6 +219,10 @@ class AoF_Client(GGPoker_Client):
         assets["K"] = cv2.imread("poker_ai/bot/assets/cards/K.png", cv2.IMREAD_GRAYSCALE)
         assets["A"] = cv2.imread("poker_ai/bot/assets/cards/A.png", cv2.IMREAD_GRAYSCALE)
         assets["call"] = cv2.imread("poker_ai/bot/assets/call.png", cv2.IMREAD_GRAYSCALE)
+        assets["bet_amount_0_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_0.png", cv2.IMREAD_GRAYSCALE)
+        assets["bet_amount_1_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_1.png", cv2.IMREAD_GRAYSCALE)
+        assets["bet_amount_2_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_2.png", cv2.IMREAD_GRAYSCALE)
+        assets["bet_amount_3_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_3.png", cv2.IMREAD_GRAYSCALE)
 
         for key, value in assets.items():
             if value is None:
@@ -318,38 +328,68 @@ class AoF_Client(GGPoker_Client):
                     active_players.append(k)
             return active_players
 
-    def get_player_bet_amount(self, player_i="0"):
+    def get_player_bet_amount(self, player_i="0", debug=False):
             """Function to get player bet.
             """
             bet = None
             sc = self.window_screenshot_grey
             section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["bet_amount"])
             #make high contrast for easy detection
-            section=utils.make_high_contrast(section, adaptive=False)
+            section_hc=utils.make_high_contrast(section, adaptive=False, cutoff=190)
             #remove background
-            cv2.floodFill(section, None, (1,1), 0)
-            cv2.floodFill(section, None, (section.shape[1]-1,section.shape[0]-1), 0)
-            bet = utils.do_OCR(section)
-            bet = bet.replace("$", "")
-            bet = bet.replace("BB", "")
+            cv2.floodFill(section_hc, None, (1,1), 0)
+            cv2.floodFill(section_hc, None, (section_hc.shape[1]-1,section_hc.shape[0]-1), 0)
+            bet = utils.do_OCR(section_hc, debug=debug)
+            bet = bet[1:]
+            bet = bet.replace("B", "")
             bet = bet.replace(",", "")
-            if bet == "":
+            if debug==True:
+                cv2.imwrite(f"{bet}_bet_{player_i}_{time.time()}.png", section)
+            if bet == "" :
                 return 0
             bet =float(bet)
             return bet
     
-    def get_player_chips_amount(self, player_i="0"):
+
+    def get_player_bet_amount_bg(self, player_i="0", debug=False):
+            """Alternative Function to get player bet based on background.
+            """
+            bet = None
+            sc = self.window_screenshot_bgr
+            section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["bet_amount"])
+            #EXPERIMENT: subtract bg from section
+            bg=self.assets[f"bet_amount_{player_i}"]
+            section_test=section-bg
+            section_grey=cv2.cvtColor(section_test, cv2.COLOR_BGR2GRAY)
+            #make high contrast for easy detection
+            section_hc=utils.make_high_contrast(section_grey, adaptive=False, cutoff=200)
+            section_hc=cv2.bitwise_not(section_test)
+            #remove background
+            cv2.floodFill(section_hc, None, (1,1), 0)
+            cv2.floodFill(section_hc, None, (section_hc.shape[1]-1,section_hc.shape[0]-1), 0)
+            bet = utils.do_OCR(section_hc, debug=debug)
+            bet = bet[1:]
+            bet = bet.replace("B", "")
+            bet = bet.replace(",", "")
+            if debug==True:
+                cv2.imwrite(f"{bet}_bet_{player_i}_{time.time()}.png", section)
+            if bet == "" :
+                return 0
+            bet =float(bet)
+            return bet
+    
+    def get_player_chips_amount(self, player_i="0", debug=False):
         """Function to get player bet.
         """
         chips = None
         sc = self.window_screenshot_grey
         section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["chips_count"])
         #make high contrast for easy detection
-        section=utils.make_high_contrast(section, adaptive=False)
+        section_hc=utils.make_high_contrast(section, adaptive=False, cutoff= 68)
         #remove background
-        cv2.floodFill(section, None, (1,1), 0)
-        cv2.floodFill(section, None, (section.shape[1]-1,section.shape[0]-1), 0)
-        chips = utils.do_OCR(section,psm=11 )
+        cv2.floodFill(section_hc, None, (1,1), 0)
+        cv2.floodFill(section_hc, None, (section_hc.shape[1]-1,section_hc.shape[0]-1), 0)
+        chips = utils.do_OCR(section_hc,psm=11, debug=debug)
         chips = chips.replace("$", "")
         chips = chips.replace("BB", "")
         chips = chips.replace(",", "")
@@ -490,17 +530,16 @@ class AoF_Client(GGPoker_Client):
                 self._update_window_screenshot()
                 if self.is_player_active(player_i) == False:
                     return "fold"         
-                elif self._is_asset_in_bbox(self.assets["call"], self.board_map[player_i]["playfield"], threshold=0.7):
+                elif self._is_asset_in_bbox(self.assets["call"], self.board_map[player_i]["playfield"], threshold=0.8):
                     return "raise"
-                elif self._is_asset_in_bbox(self.assets["all_in"], self.board_map[player_i]["playfield"], threshold=0.7):
+                elif self._is_asset_in_bbox(self.assets["all_in"], self.board_map[player_i]["playfield"], threshold=0.8):
                     return "raise"
-                else:
-                    continue
                     
                    
     def get_player_order(self):
         """Function to get player order, regardless of player number.
         """
+        #TODO: This function dfails sometimes because not all active players are captured. Needs fixing
         dealer=self._dealer
         active=self.get_active_players()
         if len(active)==2:
@@ -513,20 +552,19 @@ class AoF_Client(GGPoker_Client):
                 
             return player_order
     
-    def take_action(self, action, click=True, time:float = 1.0):
+    def take_action(self, action, click=True, duration:float = 0.2):
         """Function to take action.
         """
         VALID_ACTIONS=["fold", "all_in"]
-        if time > 10.0:
+        if duration > 10.0:
             self.log.error("Time is too long")
-            time=4.20
-
-
+            duration=4.20
+            
         if action in VALID_ACTIONS:
             if click:
                 x=self.board_map["0"][action]["top_left"][0]+self.window_coordinates["top_left"][0]
                 y=self.board_map["0"][action]["top_left"][1]+self.window_coordinates["top_left"][1]
-                utils.human_cursor_click(x=x,y=y, time=time)
+                utils.human_cursor_click(x=x,y=y, duration=duration)
             else:
                 x=self.window_coordinates["top_left"][0]+20
                 y=self.window_coordinates["top_left"][1]+20
