@@ -149,15 +149,16 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                         bets.append(bet)
                     #logging.info(f"Player {i} bet {bets[-1]}")
                 logging.info(action)
+                logging.info(bet)
                 preflop_history.append(action)
             logging.info(f"Preflop history: {preflop_history}")    
             #ideally parallelize this
             client._update_window_screenshot()
             #continue only if im not only player
             if client.get_active_players() != ["0"]:
-                hand=client.get_player_cards()
+                hand=client.get_player_cards(threshold=0.6)
                 while len(hand)!=2:
-                    time.sleep(0.5)
+                    time.sleep(1)
                     client._update_window_screenshot()
                     hand=client.get_player_cards()
                 logging.info(f"My cards: {hand}")
@@ -185,17 +186,18 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                 )
                 logging.info(f"Strategy: {strat}")
                 #get action
-                action= model._to_probability(strat)
-                logging.info(f"Action: {action}")
-                
-                if click.confirm(f'Do you want to {action}?', default=True):
-                    #hotfix
-                    if action=="all-in":
-                        action="all_in"
+                if strat:
+                    action= model._to_probability(strat)
+                    logging.info(f"Action: {action}")
+                    
+                    if click.confirm(f'Do you want to {action}?', default=True):
+                        #hotfix
+                        if action=="all-in":
+                            action="all_in"
 
-                    client.take_action(action)
+                        client.take_action(action)
 
 
 if __name__ == "__main__":
-    start(models_path="poker_ai/bot/models/aof_cumm_round_5.joblib", scale = 1.0)
+    start(models_path="poker_ai/bot/models/aof_avg_round_5_v2.joblib", scale = 1)
     #SHOULD I MAYBE JSUT COMBINE ALL SIMILAR MODELS AND INFERENCE THEM BY n_palyers?
