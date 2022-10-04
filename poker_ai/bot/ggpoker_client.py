@@ -6,6 +6,7 @@ import numpy as np
 import time
 import utils
 import logging
+import click
 
 from poker_ai.poker.card import Card
 
@@ -19,10 +20,10 @@ PLAYERS_SECTION_REL= {
         "bottom_right":(0.475,0.83)
     },
     "card_2":{
-        "top_left":(0.485,0.73),
+        "top_left":(0.49,0.73),
         "top_right":(0.53,0.73),
-        "bottom_left":(0.485,0.825),
-        "bottom_right":(0.53,0.825)
+        "bottom_left":(0.49,0.83),
+        "bottom_right":(0.53,0.83)
     },
     "playfield":{
         "top_left":(0.4,0.65),
@@ -599,9 +600,10 @@ if __name__ == "__main__":
     #TODO: see if I have cards, then determine order, then check in order if players are acting unti an action is detected, then construct history for me once its my turn
     while True:
         c._update_window_screenshot()
-        for i in ["0","1","2","3"]:
-            print(f"Bet of {i}")
-            print(c.get_player_bet_amount(i))
-            print(f"Pot of {i}")
-            print(c.get_player_chips_amount(i))
-        time.sleep(5)
+        action=np.random.choice(["fold","all-in"])
+        if click.confirm(f'Do you want to {action}?', default=True):
+                        #hotfix
+                        if action=="all-in":
+                            action="all_in"
+
+                        c.take_action(action)

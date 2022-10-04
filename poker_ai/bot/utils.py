@@ -108,6 +108,8 @@ def human_cursor_click(x, y, duration = 0.5):
         duration (float, optional): _description_. Defaults to 0.5.
     """
     hc = HumanClicker()
+    x=int(x/2)
+    y=int(y/2)
     hc.move((x,y),duration)
     hc.click()
 

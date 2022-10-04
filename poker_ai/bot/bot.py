@@ -142,14 +142,15 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                 #if player didnt fold add the bet to the list
                 if action!="fold":
                     client._update_window_screenshot()
-                    bet=client.get_player_bet_amount(i,debug=True)
+                    bet=client.get_player_bet_amount(i)
                     if bet==0:
                         logging.error("Could not get bet amount")
                     else:
                         bets.append(bet)
+                        logging.info(bet)
                     #logging.info(f"Player {i} bet {bets[-1]}")
                 logging.info(action)
-                logging.info(bet)
+                
                 preflop_history.append(action)
             logging.info(f"Preflop history: {preflop_history}")    
             #ideally parallelize this
@@ -164,8 +165,8 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
                 logging.info(f"My cards: {hand}")
                 #get my bet and pot for the current round
                 client._update_window_screenshot()
-                my_bet=client.get_player_bet_amount("0", debug=True)
-                my_pot=client.get_player_chips_amount("0", debug=True)
+                my_bet=client.get_player_bet_amount("0")
+                my_pot=client.get_player_chips_amount("0")
                 logging.info(f"My bet: {my_bet}")
                 logging.info(f"My pot: {my_pot}")
                 #get max bet
@@ -199,5 +200,6 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
 
 
 if __name__ == "__main__":
-    start(models_path="poker_ai/bot/models/aof_avg_round_5_v2.joblib", scale = 1)
+    #logging.getLogger().setLevel(logging.DEBUG)
+    start(models_path="poker_ai/bot/models/aof_cumm_round_5.joblib", scale = 1)
     #SHOULD I MAYBE JSUT COMBINE ALL SIMILAR MODELS AND INFERENCE THEM BY n_palyers?
