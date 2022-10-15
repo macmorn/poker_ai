@@ -2,6 +2,7 @@ import cv2
 import pytesseract
 from pyclick import HumanClicker
 import time
+import numpy as np
 
 def resize_image(image, scale_percent):
     width = int(image.shape[1] * scale_percent)
@@ -77,8 +78,10 @@ def crop_image_by_bbox(image, bbox):
     return image[bbox["top_left"][1]:bbox["bottom_left"][1], bbox["top_left"][0]:bbox["top_right"][0]]
 
 def do_OCR(image, lang='eng', psm=11, debug=False):
+    pytesseract.pytesseract.tesseract_cmd="/usr/local/Cellar/tesseract/4.1.1/bin/tesseract"
     text=pytesseract.image_to_string(image, lang=lang, config=f'--psm {psm} -c tessedit_char_whitelist=,.0123456789$')
     text = text.replace("\n", "")
+    text = text.replace ("\x0c", "")
     if debug:
         cv2.imwrite(f"debug/ocr/bet_{text}_{time.time()}.png", image)
     return text
@@ -105,5 +108,24 @@ def human_cursor_click(x, y, duration = 0.5):
         duration (float, optional): _description_. Defaults to 0.5.
     """
     hc = HumanClicker()
+    x=int(x/2)
+    y=int(y/2)
     hc.move((x,y),duration)
     hc.click()
+
+def preprocess_for_ocr(image):
+    #remove bg
+    cv2.floodFill(image, None, (1,1), 0)
+    cv2.floodFill(image, None, (image.shape[1]-1,image.shape[0]-1), 0)
+    #add border and resize 4x
+    image = cv2.copyMakeBorder(image, 20, 20, 5, 5, cv2.BORDER_CONSTANT)
+    image=cv2.resize(image, (0, 0), fx=4, fy=4)
+    #sharpen
+    #kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+    #image = cv2.filter2D(image, -1, kernel)
+    #erode
+    kernel = np.ones((3, 3), np.uint8)
+    image = cv2.erode(image, kernel)
+    #invert
+    image = cv2.bitwise_not(image)
+    return image

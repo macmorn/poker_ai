@@ -6,6 +6,7 @@ import numpy as np
 import time
 import utils
 import logging
+import click
 
 from poker_ai.poker.card import Card
 
@@ -19,40 +20,40 @@ PLAYERS_SECTION_REL= {
         "bottom_right":(0.475,0.83)
     },
     "card_2":{
-        "top_left":(0.485,0.73),
+        "top_left":(0.49,0.73),
         "top_right":(0.53,0.73),
-        "bottom_left":(0.485,0.825),
-        "bottom_right":(0.53,0.825)
+        "bottom_left":(0.49,0.83),
+        "bottom_right":(0.53,0.83)
     },
     "playfield":{
-        "top_left":(0.4,0.6),
-        "top_right":(0.6,0.6),
+        "top_left":(0.4,0.65),
+        "top_right":(0.6,0.65),
         "bottom_left":(0.4,0.95),
         "bottom_right":(0.6,0.95)
     },
     "chips_count":{
-        "top_left":(0.445,0.895),
-        "top_right":(0.56,0.895),
+        "top_left":(0.445,0.91),
+        "top_right":(0.56,0.91),
         "bottom_left":(0.445,0.95),
         "bottom_right":(0.56,0.95)
     },
     "bet_amount":{
-        "top_left":(0.44,0.675),
-        "top_right":(0.54,0.675),
-        "bottom_left":(0.44,0.71),
-        "bottom_right":(0.54,0.71) 
+        "top_left":(0.46,0.681),
+        "top_right":(0.56,0.681),
+        "bottom_left":(0.46,0.71),
+        "bottom_right":(0.56,0.71) 
     },
     "fold":{
-        "top_left":(0.74,0.91),
-        "top_right":(0.74,0.91),
-        "bottom_left":(0.74,0.91),
-        "bottom_right":(0.74,0.91) 
+        "top_left":(0.74,0.93),
+        "top_right":(0.74,0.93),
+        "bottom_left":(0.74,0.93),
+        "bottom_right":(0.74,0.93) 
     },
     "all_in":{
-        "top_left":(0.91,0.91),
-        "top_right":(0.91,0.91),
-        "bottom_left":(0.91,0.91),
-        "bottom_right":(0.91,0.91) 
+        "top_left":(0.91,0.93),
+        "top_right":(0.91,0.93),
+        "bottom_left":(0.91,0.93),
+        "bottom_right":(0.91,0.93) 
     },
     },
     
@@ -70,10 +71,10 @@ PLAYERS_SECTION_REL= {
         "bottom_right":(0.14,0.555)
     },
     "bet_amount":{
-        "top_left":(0.15,0.5),
-        "top_right":(0.22,0.5),
-        "bottom_left":(0.15,0.53),
-        "bottom_right":(0.22,0.53) 
+        "top_left":(0.15,0.508),
+        "top_right":(0.22,0.508),
+        "bottom_left":(0.15,0.54),
+        "bottom_right":(0.22,0.54) 
     }
     },    
     "2":{
@@ -90,8 +91,8 @@ PLAYERS_SECTION_REL= {
         "bottom_right":(0.56,0.28)
     },
     "bet_amount":{
-        "top_left":(0.46,0.325),
-        "top_right":(0.55,0.325),
+        "top_left":(0.46,0.335),
+        "top_right":(0.55,0.335),
         "bottom_left":(0.46,0.36),
         "bottom_right":(0.55,0.36) 
     }
@@ -105,15 +106,15 @@ PLAYERS_SECTION_REL= {
     },
     "chips_count":{
         "top_left":(0.87,0.515),
-        "top_right":(0.98,0.515),
+        "top_right":(0.97,0.515),
         "bottom_left":(0.87,0.555),
-        "bottom_right":(0.98,0.555)
+        "bottom_right":(0.97,0.555)
     },
     "bet_amount":{
-        "top_left":(0.78,0.5),
-        "top_right":(0.84,0.5),
-        "bottom_left":(0.78,0.54),
-        "bottom_right":(0.84,0.54) 
+        "top_left":(0.79,0.508),
+        "top_right":(0.86,0.508),
+        "bottom_left":(0.79,0.54),
+        "bottom_right":(0.86,0.54) 
     }
     }
 }
@@ -187,9 +188,11 @@ class AoF_Client(GGPoker_Client):
         "left":self.window_coordinates["top_left"][0],
         "width":self.width,
         "height":self.height}
-        window_screenshot_raw=self.sct.grab(monitor=monitor)
-        self.window_screenshot_bgr=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_BGRA2BGR)
-        self.window_screenshot_grey=cv2.cvtColor(np.array(window_screenshot_raw), cv2.COLOR_BGRA2GRAY)
+        screen=np.array(self.sct.grab(self.sct.monitors[1]))
+        screen_crop= utils.crop_image_by_bbox(screen,self.window_coordinates)
+        #window_screenshot_raw=self.sct.grab(monitor=monitor)
+        self.window_screenshot_bgr=cv2.cvtColor(screen_crop, cv2.COLOR_BGRA2BGR)
+        self.window_screenshot_grey=cv2.cvtColor(screen_crop, cv2.COLOR_BGRA2GRAY)
 
     def _initialize_assets(self):
         assets = {}
@@ -203,7 +206,7 @@ class AoF_Client(GGPoker_Client):
         assets["top_left"] = cv2.imread("poker_ai/bot/assets/top_left.png", cv2.IMREAD_GRAYSCALE)
         assets["top_right"] = cv2.imread("poker_ai/bot/assets/top_right.png", cv2.IMREAD_GRAYSCALE)
         assets["bottom_left"] = cv2.imread("poker_ai/bot/assets/bottom_left.png", cv2.IMREAD_GRAYSCALE)
-        assets["player_ingame"] = cv2.imread("poker_ai/bot/assets/player_ingame.png", cv2.IMREAD_GRAYSCALE)
+        #assets["player_ingame"] = cv2.imread("poker_ai/bot/assets/player_ingame.png", cv2.IMREAD_GRAYSCALE)
         assets["opp_cards"] = cv2.imread("poker_ai/bot/assets/opp_cards.png", cv2.IMREAD_GRAYSCALE)
         assets["2"] = cv2.imread("poker_ai/bot/assets/cards/2.png", cv2.IMREAD_GRAYSCALE)
         assets["3"] = cv2.imread("poker_ai/bot/assets/cards/3.png", cv2.IMREAD_GRAYSCALE)
@@ -219,17 +222,13 @@ class AoF_Client(GGPoker_Client):
         assets["K"] = cv2.imread("poker_ai/bot/assets/cards/K.png", cv2.IMREAD_GRAYSCALE)
         assets["A"] = cv2.imread("poker_ai/bot/assets/cards/A.png", cv2.IMREAD_GRAYSCALE)
         assets["call"] = cv2.imread("poker_ai/bot/assets/call.png", cv2.IMREAD_GRAYSCALE)
-        assets["bet_amount_0_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_0.png", cv2.IMREAD_GRAYSCALE)
-        assets["bet_amount_1_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_1.png", cv2.IMREAD_GRAYSCALE)
-        assets["bet_amount_2_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_2.png", cv2.IMREAD_GRAYSCALE)
-        assets["bet_amount_3_bg"] = cv2.imread("poker_ai/bot/assets/bet_amount_3.png", cv2.IMREAD_GRAYSCALE)
 
         for key, value in assets.items():
             if value is None:
                 raise ValueError(f"Could not load asset {key}")
         return assets
 
-    def _locate_window(self, threshold=0.7, scale= 1.0, debug=False):
+    def _locate_window(self, threshold=0.7, debug=True):
         """Function to find edges of poker window. 
         Relies on assets of corner elements, scale sensitive so element screenshots should be retaken on target device.
 
@@ -239,7 +238,7 @@ class AoF_Client(GGPoker_Client):
         """
         #set threshold for detection sensitivity
         threshold=threshold
-
+        scale=self.scale
         #start continuous checking for window
         print("Locating window...")
         while True:
@@ -253,7 +252,7 @@ class AoF_Client(GGPoker_Client):
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
                 if max_val < threshold:
                     if debug==True:
-                        logging.debug(f"Only {max_val} found for {ancor} at scale {scale}, retrying...")
+                        logging.info(f"Only {max_val} found for {ancor} at scale {scale}, retrying...")
                     #break out of loop if any of the anchors is not found
                     break
                 else:
@@ -336,11 +335,9 @@ class AoF_Client(GGPoker_Client):
             section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["bet_amount"])
             #make high contrast for easy detection
             section_hc=utils.make_high_contrast(section, adaptive=False, cutoff=190)
-            #remove background
-            cv2.floodFill(section_hc, None, (1,1), 0)
-            cv2.floodFill(section_hc, None, (section_hc.shape[1]-1,section_hc.shape[0]-1), 0)
-            bet = utils.do_OCR(section_hc, debug=debug)
-            bet = bet[1:]
+            section_pp=utils.preprocess_for_ocr(section_hc)
+            bet = utils.do_OCR(section_pp, debug=debug)
+            bet = bet.replace("$", "")
             bet = bet.replace("B", "")
             bet = bet.replace(",", "")
             if debug==True:
@@ -368,7 +365,7 @@ class AoF_Client(GGPoker_Client):
             cv2.floodFill(section_hc, None, (1,1), 0)
             cv2.floodFill(section_hc, None, (section_hc.shape[1]-1,section_hc.shape[0]-1), 0)
             bet = utils.do_OCR(section_hc, debug=debug)
-            bet = bet[1:]
+            bet = bet.replace("$", "")
             bet = bet.replace("B", "")
             bet = bet.replace(",", "")
             if debug==True:
@@ -387,9 +384,8 @@ class AoF_Client(GGPoker_Client):
         #make high contrast for easy detection
         section_hc=utils.make_high_contrast(section, adaptive=False, cutoff= 68)
         #remove background
-        cv2.floodFill(section_hc, None, (1,1), 0)
-        cv2.floodFill(section_hc, None, (section_hc.shape[1]-1,section_hc.shape[0]-1), 0)
-        chips = utils.do_OCR(section_hc,psm=11, debug=debug)
+        section_pp=utils.preprocess_for_ocr(section_hc)
+        chips = utils.do_OCR(section_pp,psm=11, debug=debug)
         chips = chips.replace("$", "")
         chips = chips.replace("BB", "")
         chips = chips.replace(",", "")
@@ -406,6 +402,7 @@ class AoF_Client(GGPoker_Client):
                 if k=="card_1" or k=="card_2":
                     section_color=utils.crop_image_by_bbox(self.window_screenshot_bgr, v)
                     is_red=utils.is_color_in_image(section_color, COLOR_RED)
+                    logging.debug(f"{k} red is {is_red}")  
                     section_contrast=utils.crop_image_by_bbox(self.window_screenshot_grey, v)   
                     #make high contrast for easy detection  
                     section_contrast=utils.make_high_contrast(section_contrast) 
@@ -416,7 +413,8 @@ class AoF_Client(GGPoker_Client):
                         section_contrast=utils.rotate_image_by_angle(section_contrast, -5)
                     #extract rank
                     rank=self._value_in_image(section_contrast, threshold=threshold)
-                    if rank:                       
+                    if rank:
+                        logging.debug(f"{k}: Got rank {rank}")                   
                         if is_red:
                             suit=self._suit_in_image(section_contrast, threshold=threshold, subset="red")
                         else:
@@ -601,6 +599,11 @@ if __name__ == "__main__":
     logging.info("GGPokerClient initialized")
     #TODO: see if I have cards, then determine order, then check in order if players are acting unti an action is detected, then construct history for me once its my turn
     while True:
-        logging.info("Waiting for new round")
-        c.wait_for_next_round()
-        logging.info("New round detected")
+        c._update_window_screenshot()
+        action=np.random.choice(["fold","all-in"])
+        if click.confirm(f'Do you want to {action}?', default=True):
+                        #hotfix
+                        if action=="all-in":
+                            action="all_in"
+
+                        c.take_action(action)
