@@ -83,10 +83,11 @@ def new_random_game(
         Current state of the game
     """
     pot = Pot()
-    blind_factor=np.random.randint(1,4)
-    blinds=[(2**blind_factor)*50,(2**blind_factor)*100]
-    total_pot=3200+(2400*(4-n_players))
-    chip_nums=[total_pot//n_players]*n_players
+    blind_factor=np.random.randint(1,6)
+    blinds=[(2**blind_factor)*25,(2**blind_factor)*50]
+    total_chips=4800*np.random.randint(1,3)
+    #make lsit of chips per player
+    chip_nums=[total_chips//n_players for _ in range(n_players)]
     chip_nums=utils.algos.randomly_move_amounts_in_list(
         chip_nums,
         np.random.randint(0,10),
@@ -433,7 +434,7 @@ class AOFPokerState:
                     self.current_player.n_bet_chips/min(max(self._poker_engine.all_bets),self.current_player.n_chips)
                 )
             except:
-                portion_bet=0.69
+                portion_bet=1.0
             info_set_dict = {
                 "n_players" : self.n_players_started_round,
                 "cards_cluster": rank,
