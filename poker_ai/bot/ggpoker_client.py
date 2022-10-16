@@ -514,7 +514,7 @@ class AoF_Client(GGPoker_Client):
         else:
             return False
 
-    def check_player_action(self, player_i, wait_n_seconds=10):
+    def watch_player_action(self, player_i, wait_n_seconds=8):
         """Function to check if player is acting.
         """
         start=time.time()
@@ -611,4 +611,4 @@ if __name__ == "__main__":
         for i in order:
             c._update_window_screenshot()
             logging.info(f"{c.check_player_action(i)}")
-            c.check_player_action(i)
+            c.watch_player_action(i)

@@ -22,7 +22,9 @@ def play_aof_sit_go_holdem(quadrant):
     client.disconnect()
 """
 
-class AoFModel:
+class DecisionModel:
+    """_summary_
+    """
     def __init__(
         self,
         path_model: str,
@@ -30,6 +32,14 @@ class AoFModel:
         round_flop: int =100,
         use_bet_ratio: bool = True,
         ):
+        """Class to query a decision model.
+
+        Args:
+            path_model (str): path to joblib file with game model.
+            round_preflop (int, optional): Model parameter to which mumber card rank is roundned in the preflop. Defaults to 5.
+            round_flop (int, optional): Model parameter to which mumber card rank is roundned in the preflop. Defaults to 100.
+            use_bet_ratio (bool, optional): Flag if bet ratio is included in the query. Defaults to True.
+        """
 
         self.path_model = path_model
         self._round_preflop = round_preflop
@@ -112,24 +122,21 @@ class AoFModel:
 
 
 def start(models_path: str, scale = 1.0):
-    model=AoFModel(path_model=models_path)
+    model= DecisionModel(path_model=models_path)
     client = AoF_Client(scale= scale)
 
     while True:
-        play_aof_sit_go_holdem(client, model)
+        play_round(client, model)
 
 
 #super crude playing function
-def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
+def play_round(client : AoF_Client, model: DecisionModel):
 
             logging.info("Waiting for new round to start")
             client.wait_for_round_start()
             #round switch triggered by moving dealer button
             client.current_round+=1
             logging.info(f"Round {client.current_round} has started")
-            #wait for deal animation to finish
-            #time.sleep(2)
-            client._update_window_screenshot()
             #get player orders
             player_order=client.get_player_order()
             logging.info(f"Player order:{player_order}")
@@ -138,7 +145,7 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
             for i in player_order:
                 if i=="0":
                     break
-                action=client.check_player_action(i)
+                action=client.watch_player_action(i)
                 #if player didnt fold add the bet to the list
                 if action!="fold":
                     client._update_window_screenshot()
