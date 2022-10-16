@@ -207,7 +207,7 @@ class AoF_Client(GGPoker_Client):
         assets["top_right"] = cv2.imread("poker_ai/bot/assets/top_right.png", cv2.IMREAD_GRAYSCALE)
         assets["bottom_left"] = cv2.imread("poker_ai/bot/assets/bottom_left.png", cv2.IMREAD_GRAYSCALE)
         #assets["player_ingame"] = cv2.imread("poker_ai/bot/assets/player_ingame.png", cv2.IMREAD_GRAYSCALE)
-        assets["opp_cards"] = cv2.imread("poker_ai/bot/assets/opp_cards.png", cv2.IMREAD_GRAYSCALE)
+        assets["closed_cards"] = cv2.imread("poker_ai/bot/assets/closed_cards.png", cv2.IMREAD_GRAYSCALE)
         assets["2"] = cv2.imread("poker_ai/bot/assets/cards/2.png", cv2.IMREAD_GRAYSCALE)
         assets["3"] = cv2.imread("poker_ai/bot/assets/cards/3.png", cv2.IMREAD_GRAYSCALE)
         assets["4"] = cv2.imread("poker_ai/bot/assets/cards/4.png", cv2.IMREAD_GRAYSCALE)
@@ -508,13 +508,13 @@ class AoF_Client(GGPoker_Client):
             return self.my_cards_dealt
 
         else:
-            template=self.assets["opp_cards"]
+            template=self.assets["closed_cards"]
         if self._is_asset_in_bbox(template, self.board_map[player_i]["playfield"], threshold=0.7):
             return True
         else:
             return False
 
-    def check_player_action(self, player_i, wait_n_seconds=8):
+    def check_player_action(self, player_i, wait_n_seconds=10):
         """Function to check if player is acting.
         """
         start=time.time()
@@ -524,6 +524,7 @@ class AoF_Client(GGPoker_Client):
             elapsed=time.time()-start
             if elapsed>wait_n_seconds:
                 Exception ("Player action not found")
+                break
             else:
                 self._update_window_screenshot()
                 if self.is_player_active(player_i) == False:
@@ -580,30 +581,34 @@ class AoF_Client(GGPoker_Client):
         else:
             Exception(f"Action not recognized, must be one of {VALID_ACTIONS}")
 
-    def wait_for_next_round(self):
+    def wait_for_round_start(self):
         """Function to wait for next round.
-        Checks if the dealer changed.
+        Checks for closed cards in player 0 space.
+        #Checks if the dealer changed.
         """
+        logging.info("Waiting for new round")
         while True:
-            dealer=self._dealer
-            time.sleep(0.2)
             self._update_window_screenshot()
-            
-            if (dealer !=self._dealer) & (self._dealer != None):
-                break
+            #are my cards dealt (closed)?
+            flag_player_cards= self._is_asset_in_bbox(self.assets["closed_cards"], self.board_map["0"]["playfield"], threshold=0.8)
+            #is there an opponent?
+            flag_opponent =  True in [self.is_player_active(p) for p in self.board_map.keys()]
+            if flag_player_cards & flag_opponent:
+                logging.info("New round started")
+                return True
             else:
+                time.sleep(0.2)
                 continue
 
 if __name__ == "__main__":
     c=AoF_Client()
     logging.info("GGPokerClient initialized")
-    #TODO: see if I have cards, then determine order, then check in order if players are acting unti an action is detected, then construct history for me once its my turn
     while True:
-        c._update_window_screenshot()
-        action=np.random.choice(["fold","all-in"])
-        if click.confirm(f'Do you want to {action}?', default=True):
-                        #hotfix
-                        if action=="all-in":
-                            action="all_in"
-
-                        c.take_action(action)
+        c.wait_for_round_start()
+        logging.info("round started")
+        order=c.get_player_order()
+        logging.info(f"Order:{order}")
+        for i in order:
+            c._update_window_screenshot()
+            logging.info(f"{c.check_player_action(i)}")
+            c.check_player_action(i)

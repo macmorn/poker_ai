@@ -123,12 +123,12 @@ def start(models_path: str, scale = 1.0):
 def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
 
             logging.info("Waiting for new round to start")
-            client.wait_for_next_round()
+            client.wait_for_round_start()
             #round switch triggered by moving dealer button
             client.current_round+=1
             logging.info(f"Round {client.current_round} has started")
             #wait for deal animation to finish
-            time.sleep(2)
+            #time.sleep(2)
             client._update_window_screenshot()
             #get player orders
             player_order=client.get_player_order()
@@ -200,6 +200,6 @@ def play_aof_sit_go_holdem(client : AoF_Client, model: AoFModel):
 
 
 if __name__ == "__main__":
-    #logging.getLogger().setLevel(logging.DEBUG)
-    start(models_path="poker_ai/bot/models/aof_cumm_round_5.joblib", scale = 1)
+    logging.getLogger().setLevel(logging.DEBUG)
+    start(models_path="poker_ai/bot/models/aof_avg_round_5_2022_10_06_09_16_11_546798.joblib", scale = 1)
     #SHOULD I MAYBE JSUT COMBINE ALL SIMILAR MODELS AND INFERENCE THEM BY n_palyers?
