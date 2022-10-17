@@ -63,6 +63,14 @@ class DecisionModel:
         logging.debug(f"Probabilities: {strat.values()}")
         return a
 
+    def max_probability(self, strat: dict):
+        norm = sum(strat.values())
+        for a in strat.keys():
+            strat[a] /= norm
+        a = max(strat,key=strat.get)
+        logging.debug(f"Probabilities: {strat.values()}")
+        return a
+
     def query(self, 
             num_players: int,
             my_bet: float,
@@ -116,7 +124,7 @@ class DecisionModel:
             return self.model[query]
         except:
             logging.error("Could not find strategy for query, saving query for analysis")
-            with open("debug/failed_queries.txt", "w") as f:
+            with open("debug/failed_queries.txt", "a") as f:
                 f.write(query+"\n")
 
 
@@ -124,17 +132,18 @@ class DecisionModel:
 def start(models_path: str, scale = 1.0):
     model= DecisionModel(path_model=models_path)
     client = AoF_Client(scale= scale)
-
-    while True:
+    is_game_over=client.is_game_over
+    while is_game_over == False:
         play_round(client, model)
+        is_game_over=client.is_game_over
+    
+    
 
 
 #super crude playing function
 def play_round(client : AoF_Client, model: DecisionModel):
-
-            logging.info("Waiting for new round to start")
             client.wait_for_round_start()
-            #round switch triggered by moving dealer button
+            #round switch triggered by me getting closed cards
             client.current_round+=1
             logging.info(f"Round {client.current_round} has started")
             #get player orders
@@ -142,6 +151,7 @@ def play_round(client : AoF_Client, model: DecisionModel):
             logging.info(f"Player order:{player_order}")
             preflop_history=[]
             bets=[]
+            #watch for player actions and record them
             for i in player_order:
                 if i=="0":
                     break
@@ -195,7 +205,7 @@ def play_round(client : AoF_Client, model: DecisionModel):
                 logging.info(f"Strategy: {strat}")
                 #get action
                 if strat:
-                    action= model._to_probability(strat)
+                    action= model.max_probability(strat)
                     logging.info(f"Action: {action}")
                     
                     if click.confirm(f'Do you want to {action}?', default=True):
