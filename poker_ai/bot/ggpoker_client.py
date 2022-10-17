@@ -402,7 +402,7 @@ class AoF_Client(GGPoker_Client):
         chips =float(chips)
         return chips
 
-    def get_player_cards(self, player_i="0", threshold=0.75):
+    def get_player_cards(self, player_i="0", threshold=0.70):
             """Function to get suited cards of player.
             """
             suited_cards=[]
@@ -428,6 +428,7 @@ class AoF_Client(GGPoker_Client):
                         else:
                             suit=self._suit_in_image(section_contrast, threshold=threshold, subset="black")
                         if suit:
+                            logging.debug(f"{k}: Got suit {suit}")                   
                             suited_cards.append({"rank":rank, "suit":suit})
             
             #transform to model card representation
@@ -477,6 +478,7 @@ class AoF_Client(GGPoker_Client):
             return max(found, key=found.get)
         else:
             return None
+
     @property
     def is_game_over(self):
         """Function returning if game over screen is visible"""
@@ -598,16 +600,18 @@ class AoF_Client(GGPoker_Client):
         """
         logging.info("Waiting for new round")
         while True:
+            #start looking at board state
             dealer=self._dealer
             self._update_window_screenshot()
-            #check for game over
-            if self.is_game_over:
-                break
             #check for dearler change
             new_dealer=self._dealer
             if (new_dealer!=dealer) & (new_dealer != None):
                 logging.info("Dealer changed")
                 while True:
+                                #check for game over
+                    if self.is_game_over:
+                        if click.confirm(f'Game over detexcted, do you want to quit?', default=True):
+                            self.close_window()
                     self._update_window_screenshot()
                     #are my cards dealt ?
                     flag_player_cards= self._is_asset_in_bbox(self.assets["closed_cards"], self.board_map["0"]["playfield"], threshold=0.8)

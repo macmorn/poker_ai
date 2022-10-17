@@ -53,7 +53,7 @@ class DecisionModel:
             offline_strategy_dict = joblib.load(input_file)
         return offline_strategy_dict
 
-    def _to_probability(self, strat: dict):
+    def probabalistic_action(self, strat: dict):
         norm = sum(strat.values())
         for a in strat.keys():
             strat[a] /= norm
@@ -63,7 +63,7 @@ class DecisionModel:
         logging.debug(f"Probabilities: {strat.values()}")
         return a
 
-    def max_probability(self, strat: dict):
+    def max_action(self, strat: dict):
         norm = sum(strat.values())
         for a in strat.keys():
             strat[a] /= norm
@@ -142,6 +142,7 @@ def start(models_path: str, scale = 1.0):
 
 #super crude playing function
 def play_round(client : AoF_Client, model: DecisionModel):
+
             client.wait_for_round_start()
             #round switch triggered by me getting closed cards
             client.current_round+=1
@@ -205,15 +206,16 @@ def play_round(client : AoF_Client, model: DecisionModel):
                 logging.info(f"Strategy: {strat}")
                 #get action
                 if strat:
-                    action= model.max_probability(strat)
+                    action= model.probabalistic_action(strat)
                     logging.info(f"Action: {action}")
                     
-                    if click.confirm(f'Do you want to {action}?', default=True):
-                        #hotfix
-                        if action=="all-in":
-                            action="all_in"
+                    #if click.confirm(f'Do you want to {action}?', default=True):
+                    #hotfix
+                    if action=="all-in":
+                        action="all_in"
 
-                        client.take_action(action)
+                    client.take_action(action)
+                    #TODO: wait here for signal round is being resolved
 
 
 if __name__ == "__main__":
