@@ -10,6 +10,127 @@ import click
 
 from poker_ai.poker.card import Card
 
+BOARD_CARDS={
+    "0":{
+        "top_left":(0.295,0.42),
+        "top_right":(0.32,0.42),
+        "bottom_left":(0.295,0.5),
+        "bottom_right":(0.32,0.5)
+    },
+    "1":{
+        "top_left":(0.38,0.42),
+        "top_right":(0.41,0.42),
+        "bottom_left":(0.38,0.5),
+        "bottom_right":(0.41,0.5)
+    },
+    "2":{
+        "top_left":(0.465,0.42),
+        "top_right":(0.495,0.42),
+        "bottom_left":(0.465,0.5),
+        "bottom_right":(0.495,0.5)
+    },
+    "3":{
+        "top_left":(0.55,0.42),
+        "top_right":(0.58,0.42),
+        "bottom_left":(0.55,0.5),
+        "bottom_right":(0.58,0.5)
+    },
+    "4":{
+        "top_left":(0.635,0.42),
+        "top_right":(0.665,0.42),
+        "bottom_left":(0.635,0.5),
+        "bottom_right":(0.665,0.5)
+    }
+    }
+
+PLAYERS_SECTION_3P= {
+    "0":{   
+    "card_1":{
+        "top_left":(0.43,0.73),
+        "top_right":(0.475,0.73),
+        "bottom_left":(0.43,0.83),
+        "bottom_right":(0.475,0.83)
+    },
+    "card_2":{
+        "top_left":(0.49,0.73),
+        "top_right":(0.53,0.73),
+        "bottom_left":(0.49,0.83),
+        "bottom_right":(0.53,0.83)
+    },
+    "playfield":{
+        "top_left":(0.4,0.65),
+        "top_right":(0.6,0.65),
+        "bottom_left":(0.4,0.95),
+        "bottom_right":(0.6,0.95)
+    },
+    "chips_count":{
+        "top_left":(0.445,0.91),
+        "top_right":(0.56,0.91),
+        "bottom_left":(0.445,0.95),
+        "bottom_right":(0.56,0.95)
+    },
+    "bet_amount":{
+        "top_left":(0.46,0.681),
+        "top_right":(0.56,0.681),
+        "bottom_left":(0.46,0.71),
+        "bottom_right":(0.56,0.71) 
+    },
+    "fold":{
+        "top_left":(0.74,0.93),
+        "top_right":(0.74,0.93),
+        "bottom_left":(0.74,0.93),
+        "bottom_right":(0.74,0.93) 
+    },
+    "all_in":{
+        "top_left":(0.91,0.93),
+        "top_right":(0.91,0.93),
+        "bottom_left":(0.91,0.93),
+        "bottom_right":(0.91,0.93) 
+    },
+    },
+    
+    "1":{
+    "playfield":{
+        "top_left":(0.07,0.21),
+        "top_right":(0.29,0.21),
+        "bottom_left":(0.07,0.44),
+        "bottom_right":(0.29,0.44)
+    },
+    "chips_count":{
+        "top_left":(0.03,0.515),
+        "top_right":(0.14,0.515),
+        "bottom_left":(0.03,0.555),
+        "bottom_right":(0.14,0.555)
+    },
+    "bet_amount":{
+        "top_left":(0.24,0.41),
+        "top_right":(0.28,0.41),
+        "bottom_left":(0.24,0.44),
+        "bottom_right":(0.28,0.44) 
+    }
+    },    
+    "2":{
+    "playfield":{
+        "top_left":(0.7,0.2),
+        "top_right":(0.9,0.2),
+        "bottom_left":(0.7,0.45),
+        "bottom_right":(0.9,0.45)
+    },
+    "chips_count":{
+        "top_left":(0.45,0.23),
+        "top_right":(0.56,0.23),
+        "bottom_left":(0.45,0.28),
+        "bottom_right":(0.56,0.28)
+    },
+    "bet_amount":{
+        "top_left":(0.72,0.41),
+        "top_right":(0.76,0.41),
+        "bottom_left":(0.72,0.43),
+        "bottom_right":(0.76,0.43) 
+    }
+    }
+}
+
 PLAYERS_SECTION_REL= {
     "0":{
     
@@ -154,6 +275,8 @@ class AoF_Client(GGPoker_Client):
         """
         while True:
             x, y = pyautogui.position()
+            #correct for retina screen
+            x, y = x*2, y*2
             self._update_window_screenshot()
             rel_x=(x-self.window_coordinates["top_left"][0])/self.width
             rel_y= (y-self.window_coordinates["top_left"][1])/self.height
@@ -166,14 +289,18 @@ class AoF_Client(GGPoker_Client):
             time.sleep(3)
 
 
-    def _draw_bb_areas_interest(self):
+    def _draw_bb_areas_interest(self, debug=False):
         """Helper function that draws the bounding boxes of al the areas of interest.
         For debugging purposes."""
         for k, v in self.board_map.items():
             for k2, v2 in v.items():
                 
                 self.window_screenshot_grey=utils.draw_bb_with_coordinates(self.window_screenshot_grey, v2, k+k2)
-
+                if debug == True: 
+                    try:
+                        cv2.imwrite(f"debug/{k+k2}.png", utils.crop_image_by_bbox(self.window_screenshot_grey, v2))
+                    except:
+                        logging.error(f"Failed to write {k+k2}")
         cv2.imshow("window", self.window_screenshot_grey)
         cv2.waitKey()
     
@@ -283,7 +410,7 @@ class AoF_Client(GGPoker_Client):
         """Function to initialize the playfield map.
         """
         board_map = defaultdict(dict)
-        for k, v in PLAYERS_SECTION_REL.items():
+        for k, v in PLAYERS_SECTION_3P.items():
             for k2, v2 in v.items():
                 board_map[k][k2] = {
                     "top_left": (int(v2["top_left"][0] * self.width),
@@ -296,6 +423,18 @@ class AoF_Client(GGPoker_Client):
                                     int(v2["bottom_right"][1] * self.height))
                     
                 }
+        for k2, v2 in BOARD_CARDS.items():
+            board_map["board_cards"][k2] = {
+                "top_left": (int(v2["top_left"][0] * self.width),
+                                int(v2["top_left"][1] * self.height)),
+                "top_right": (int(v2["top_right"][0] * self.width),
+                                int(v2["top_right"][1] * self.height)),
+                "bottom_left": (int(v2["bottom_left"][0] * self.width),
+                                int(v2["bottom_left"][1] * self.height)),
+                "bottom_right": (int(v2["bottom_right"][0] * self.width),
+                                int(v2["bottom_right"][1] * self.height))
+                
+            }
 
         return board_map
 
@@ -632,3 +771,6 @@ class AoF_Client(GGPoker_Client):
 if __name__ == "__main__":
     c=AoF_Client()
     logging.info("GGPokerClient initialized")
+    while True:
+        c._update_window_screenshot()
+        c._draw_bb_areas_interest(debug= True)
