@@ -10,6 +10,127 @@ import click
 
 from poker_ai.poker.card import Card
 
+BOARD_CARDS={
+    "0":{
+        "top_left":(0.295,0.42),
+        "top_right":(0.32,0.42),
+        "bottom_left":(0.295,0.5),
+        "bottom_right":(0.32,0.5)
+    },
+    "1":{
+        "top_left":(0.38,0.42),
+        "top_right":(0.41,0.42),
+        "bottom_left":(0.38,0.5),
+        "bottom_right":(0.41,0.5)
+    },
+    "2":{
+        "top_left":(0.465,0.42),
+        "top_right":(0.495,0.42),
+        "bottom_left":(0.465,0.5),
+        "bottom_right":(0.495,0.5)
+    },
+    "3":{
+        "top_left":(0.55,0.42),
+        "top_right":(0.58,0.42),
+        "bottom_left":(0.55,0.5),
+        "bottom_right":(0.58,0.5)
+    },
+    "4":{
+        "top_left":(0.635,0.42),
+        "top_right":(0.665,0.42),
+        "bottom_left":(0.635,0.5),
+        "bottom_right":(0.665,0.5)
+    }
+    }
+
+PLAYERS_SECTION_3P= {
+    "0":{   
+    "card_1":{
+        "top_left":(0.43,0.73),
+        "top_right":(0.475,0.73),
+        "bottom_left":(0.43,0.83),
+        "bottom_right":(0.475,0.83)
+    },
+    "card_2":{
+        "top_left":(0.49,0.73),
+        "top_right":(0.53,0.73),
+        "bottom_left":(0.49,0.83),
+        "bottom_right":(0.53,0.83)
+    },
+    "playfield":{
+        "top_left":(0.4,0.65),
+        "top_right":(0.6,0.65),
+        "bottom_left":(0.4,0.95),
+        "bottom_right":(0.6,0.95)
+    },
+    "chips_count":{
+        "top_left":(0.445,0.91),
+        "top_right":(0.56,0.91),
+        "bottom_left":(0.445,0.95),
+        "bottom_right":(0.56,0.95)
+    },
+    "bet_amount":{
+        "top_left":(0.46,0.681),
+        "top_right":(0.56,0.681),
+        "bottom_left":(0.46,0.71),
+        "bottom_right":(0.56,0.71) 
+    },
+    "fold":{
+        "top_left":(0.74,0.93),
+        "top_right":(0.74,0.93),
+        "bottom_left":(0.74,0.93),
+        "bottom_right":(0.74,0.93) 
+    },
+    "all_in":{
+        "top_left":(0.91,0.93),
+        "top_right":(0.91,0.93),
+        "bottom_left":(0.91,0.93),
+        "bottom_right":(0.91,0.93) 
+    },
+    },
+    
+    "1":{
+    "playfield":{
+        "top_left":(0.07,0.21),
+        "top_right":(0.29,0.21),
+        "bottom_left":(0.07,0.44),
+        "bottom_right":(0.29,0.44)
+    },
+    "chips_count":{
+        "top_left":(0.03,0.515),
+        "top_right":(0.14,0.515),
+        "bottom_left":(0.03,0.555),
+        "bottom_right":(0.14,0.555)
+    },
+    "bet_amount":{
+        "top_left":(0.24,0.41),
+        "top_right":(0.28,0.41),
+        "bottom_left":(0.24,0.44),
+        "bottom_right":(0.28,0.44) 
+    }
+    },    
+    "2":{
+    "playfield":{
+        "top_left":(0.7,0.2),
+        "top_right":(0.9,0.2),
+        "bottom_left":(0.7,0.45),
+        "bottom_right":(0.9,0.45)
+    },
+    "chips_count":{
+        "top_left":(0.45,0.23),
+        "top_right":(0.56,0.23),
+        "bottom_left":(0.45,0.28),
+        "bottom_right":(0.56,0.28)
+    },
+    "bet_amount":{
+        "top_left":(0.72,0.41),
+        "top_right":(0.76,0.41),
+        "bottom_left":(0.72,0.43),
+        "bottom_right":(0.76,0.43) 
+    }
+    }
+}
+
 PLAYERS_SECTION_REL= {
     "0":{
     
@@ -154,6 +275,8 @@ class AoF_Client(GGPoker_Client):
         """
         while True:
             x, y = pyautogui.position()
+            #correct for retina screen
+            x, y = x*2, y*2
             self._update_window_screenshot()
             rel_x=(x-self.window_coordinates["top_left"][0])/self.width
             rel_y= (y-self.window_coordinates["top_left"][1])/self.height
@@ -166,14 +289,18 @@ class AoF_Client(GGPoker_Client):
             time.sleep(3)
 
 
-    def _draw_bb_areas_interest(self):
+    def _draw_bb_areas_interest(self, debug=False):
         """Helper function that draws the bounding boxes of al the areas of interest.
         For debugging purposes."""
         for k, v in self.board_map.items():
             for k2, v2 in v.items():
                 
                 self.window_screenshot_grey=utils.draw_bb_with_coordinates(self.window_screenshot_grey, v2, k+k2)
-
+                if debug == True: 
+                    try:
+                        cv2.imwrite(f"debug/{k+k2}.png", utils.crop_image_by_bbox(self.window_screenshot_grey, v2))
+                    except:
+                        logging.error(f"Failed to write {k+k2}")
         cv2.imshow("window", self.window_screenshot_grey)
         cv2.waitKey()
     
@@ -196,18 +323,14 @@ class AoF_Client(GGPoker_Client):
 
     def _initialize_assets(self):
         assets = {}
-        assets["dealer_button"] = cv2.imread("poker_ai/bot/assets/dealer_button.png", cv2.IMREAD_GRAYSCALE)
-        assets["fold"] = cv2.imread("poker_ai/bot/assets/fold.png", cv2.IMREAD_GRAYSCALE)
-        assets["all_in"] = cv2.imread("poker_ai/bot/assets/all_in.png", cv2.IMREAD_GRAYSCALE)
-        assets["clubs"] = cv2.imread("poker_ai/bot/assets/cards/clubs.png", cv2.IMREAD_GRAYSCALE)
-        assets["diamonds"] = cv2.imread("poker_ai/bot/assets/cards/diamonds.png", cv2.IMREAD_GRAYSCALE)
-        assets["hearts"] = cv2.imread("poker_ai/bot/assets/cards/hearts.png", cv2.IMREAD_GRAYSCALE)
-        assets["spades"] = cv2.imread("poker_ai/bot/assets/cards/spades.png", cv2.IMREAD_GRAYSCALE)
+        #window
         assets["top_left"] = cv2.imread("poker_ai/bot/assets/top_left.png", cv2.IMREAD_GRAYSCALE)
         assets["top_right"] = cv2.imread("poker_ai/bot/assets/top_right.png", cv2.IMREAD_GRAYSCALE)
         assets["bottom_left"] = cv2.imread("poker_ai/bot/assets/bottom_left.png", cv2.IMREAD_GRAYSCALE)
         #assets["player_ingame"] = cv2.imread("poker_ai/bot/assets/player_ingame.png", cv2.IMREAD_GRAYSCALE)
         assets["closed_cards"] = cv2.imread("poker_ai/bot/assets/closed_cards.png", cv2.IMREAD_GRAYSCALE)
+        assets["dealer_button"] = cv2.imread("poker_ai/bot/assets/dealer_button.png", cv2.IMREAD_GRAYSCALE)
+        #cards
         assets["2"] = cv2.imread("poker_ai/bot/assets/cards/2.png", cv2.IMREAD_GRAYSCALE)
         assets["3"] = cv2.imread("poker_ai/bot/assets/cards/3.png", cv2.IMREAD_GRAYSCALE)
         assets["4"] = cv2.imread("poker_ai/bot/assets/cards/4.png", cv2.IMREAD_GRAYSCALE)
@@ -221,7 +344,19 @@ class AoF_Client(GGPoker_Client):
         assets["Q"] = cv2.imread("poker_ai/bot/assets/cards/Q.png", cv2.IMREAD_GRAYSCALE)
         assets["K"] = cv2.imread("poker_ai/bot/assets/cards/K.png", cv2.IMREAD_GRAYSCALE)
         assets["A"] = cv2.imread("poker_ai/bot/assets/cards/A.png", cv2.IMREAD_GRAYSCALE)
+        assets["clubs"] = cv2.imread("poker_ai/bot/assets/cards/clubs.png", cv2.IMREAD_GRAYSCALE)
+        assets["diamonds"] = cv2.imread("poker_ai/bot/assets/cards/diamonds.png", cv2.IMREAD_GRAYSCALE)
+        assets["hearts"] = cv2.imread("poker_ai/bot/assets/cards/hearts.png", cv2.IMREAD_GRAYSCALE)
+        assets["spades"] = cv2.imread("poker_ai/bot/assets/cards/spades.png", cv2.IMREAD_GRAYSCALE)
+        #actions
         assets["call"] = cv2.imread("poker_ai/bot/assets/call.png", cv2.IMREAD_GRAYSCALE)
+        assets["check"] = cv2.imread("poker_ai/bot/assets/check.png", cv2.IMREAD_GRAYSCALE)
+        assets["fold"] = cv2.imread("poker_ai/bot/assets/fold.png", cv2.IMREAD_GRAYSCALE)
+        assets["all_in"] = cv2.imread("poker_ai/bot/assets/all_in.png", cv2.IMREAD_GRAYSCALE)
+        #game
+        assets["game_over"] = cv2.imread("poker_ai/bot/assets/game_over.png", cv2.IMREAD_GRAYSCALE)
+        assets["main_menu_aof_50"] = cv2.imread("poker_ai/bot/assets/games/all_in_fold/main_menu_50c.png", cv2.IMREAD_GRAYSCALE)
+
 
         for key, value in assets.items():
             if value is None:
@@ -275,7 +410,7 @@ class AoF_Client(GGPoker_Client):
         """Function to initialize the playfield map.
         """
         board_map = defaultdict(dict)
-        for k, v in PLAYERS_SECTION_REL.items():
+        for k, v in PLAYERS_SECTION_3P.items():
             for k2, v2 in v.items():
                 board_map[k][k2] = {
                     "top_left": (int(v2["top_left"][0] * self.width),
@@ -288,6 +423,18 @@ class AoF_Client(GGPoker_Client):
                                     int(v2["bottom_right"][1] * self.height))
                     
                 }
+        for k2, v2 in BOARD_CARDS.items():
+            board_map["board_cards"][k2] = {
+                "top_left": (int(v2["top_left"][0] * self.width),
+                                int(v2["top_left"][1] * self.height)),
+                "top_right": (int(v2["top_right"][0] * self.width),
+                                int(v2["top_right"][1] * self.height)),
+                "bottom_left": (int(v2["bottom_left"][0] * self.width),
+                                int(v2["bottom_left"][1] * self.height)),
+                "bottom_right": (int(v2["bottom_right"][0] * self.width),
+                                int(v2["bottom_right"][1] * self.height))
+                
+            }
 
         return board_map
 
@@ -327,7 +474,7 @@ class AoF_Client(GGPoker_Client):
                     active_players.append(k)
             return active_players
 
-    def get_player_bet_amount(self, player_i="0", debug=False):
+    def get_player_bet_amount(self, player_i="0", debug=True):
             """Function to get player bet.
             """
             bet = None
@@ -394,7 +541,7 @@ class AoF_Client(GGPoker_Client):
         chips =float(chips)
         return chips
 
-    def get_player_cards(self, player_i="0", threshold=0.75):
+    def get_player_cards(self, player_i="0", threshold=0.70):
             """Function to get suited cards of player.
             """
             suited_cards=[]
@@ -420,14 +567,15 @@ class AoF_Client(GGPoker_Client):
                         else:
                             suit=self._suit_in_image(section_contrast, threshold=threshold, subset="black")
                         if suit:
+                            logging.debug(f"{k}: Got suit {suit}")                   
                             suited_cards.append({"rank":rank, "suit":suit})
             
             #transform to model card representation
-            suited_cards=[Card(rank=c["rank"], suit=c["suit"]) for c in suited_cards]
-            if len(suited_cards)==2:
-                return suited_cards
-            elif len(suited_cards)==1:
-                print("Only one card found", suited_cards)
+            found_cards=[Card(rank=c["rank"], suit=c["suit"]) for c in suited_cards]
+            if len(found_cards)==2:
+                return found_cards
+            elif len(found_cards)==1:
+                print("Only one card found", found_cards)
             return {}
 
     def _suit_in_image(self,  image : dict, threshold=0.9, subset="all"):
@@ -469,7 +617,11 @@ class AoF_Client(GGPoker_Client):
             return max(found, key=found.get)
         else:
             return None
-    
+
+    @property
+    def is_game_over(self):
+        """Function returning if game over screen is visible"""
+        return utils.match_over_threshold(self.window_screenshot_grey, self.assets["game_over"], threshold=0.7)
     @property
     def is_my_turn(self):
         """Function to check if it is my turn.
@@ -490,6 +642,9 @@ class AoF_Client(GGPoker_Client):
     def my_cards_dealt(self):
         """Function to check if cards are dealt to my player.
         """
+        template=self.assets["closed_cards"]
+        if self._is_asset_in_bbox(template, self.board_map["0"]["playfield"], threshold=0.7) == True:
+            return True
         card_1_crop=utils.crop_image_by_bbox(self.window_screenshot_bgr, self.board_map["0"]["card_1"])
         card_2_crop=utils.crop_image_by_bbox(self.window_screenshot_bgr, self.board_map["0"]["card_2"])
 
@@ -504,17 +659,13 @@ class AoF_Client(GGPoker_Client):
     def is_player_active(self, player_i):
         """Function to check if player is active.
         """
-        if player_i=="0":
+        if player_i == "0":
             return self.my_cards_dealt
-
         else:
             template=self.assets["closed_cards"]
-        if self._is_asset_in_bbox(template, self.board_map[player_i]["playfield"], threshold=0.7):
-            return True
-        else:
-            return False
+            return self._is_asset_in_bbox(template, self.board_map[player_i]["playfield"], threshold=0.6)
 
-    def watch_player_action(self, player_i, wait_n_seconds=8):
+    def watch_player_action(self, player_i, wait_n_seconds=10):
         """Function to check if player is acting.
         """
         start=time.time()
@@ -524,7 +675,7 @@ class AoF_Client(GGPoker_Client):
             elapsed=time.time()-start
             if elapsed>wait_n_seconds:
                 Exception ("Player action not found")
-                break
+                return None
             else:
                 self._update_window_screenshot()
                 if self.is_player_active(player_i) == False:
@@ -584,31 +735,42 @@ class AoF_Client(GGPoker_Client):
     def wait_for_round_start(self):
         """Function to wait for next round.
         Checks for closed cards in player 0 space.
-        #Checks if the dealer changed.
+        Doesnt work as well as I would like.
         """
         logging.info("Waiting for new round")
         while True:
+            #start looking at board state
+            dealer=self._dealer
             self._update_window_screenshot()
-            #are my cards dealt (closed)?
-            flag_player_cards= self._is_asset_in_bbox(self.assets["closed_cards"], self.board_map["0"]["playfield"], threshold=0.8)
-            #is there an opponent?
-            flag_opponent =  True in [self.is_player_active(p) for p in self.board_map.keys()]
-            if flag_player_cards & flag_opponent:
-                logging.info("New round started")
-                return True
-            else:
-                time.sleep(0.2)
-                continue
+            #check for dearler change
+            new_dealer=self._dealer
+            if (new_dealer!=dealer) & (new_dealer != None):
+                logging.info("Dealer changed")
+                while True:
+                                #check for game over
+                    if self.is_game_over:
+                        if click.confirm(f'Game over detexcted, do you want to quit?', default=True):
+                            self.close_window()
+                    self._update_window_screenshot()
+                    #are my cards dealt ?
+                    flag_player_cards= self._is_asset_in_bbox(self.assets["closed_cards"], self.board_map["0"]["playfield"], threshold=0.8)
+                    #is there an opponent?
+                    flag_opponent =  True in [self.is_player_active(p) if p!="0" else False for p in self.board_map.keys()]
+                    if flag_player_cards & flag_opponent:
+                        logging.info("New round started")
+                        return True
+                    else:
+                        continue
+
+    def close_window(self):
+        utils.human_cursor_click(x=self.window_coordinates["top_right"][0]-20,y=self.window_coordinates["top_right"][1]+20)
+        time.sleep(1)
+        utils.human_cursor_click(x=self.window_coordinates["top_right"][0]-25,y=self.window_coordinates["top_right"][1]+25)
+
 
 if __name__ == "__main__":
     c=AoF_Client()
     logging.info("GGPokerClient initialized")
     while True:
-        c.wait_for_round_start()
-        logging.info("round started")
-        order=c.get_player_order()
-        logging.info(f"Order:{order}")
-        for i in order:
-            c._update_window_screenshot()
-            logging.info(f"{c.check_player_action(i)}")
-            c.watch_player_action(i)
+        c._update_window_screenshot()
+        c._draw_bb_areas_interest(debug= True)
