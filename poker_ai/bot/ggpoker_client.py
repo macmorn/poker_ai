@@ -292,7 +292,7 @@ class AoF_Client(GGPoker_Client):
     def _draw_bb_areas_interest(self, debug=False):
         """Helper function that draws the bounding boxes of al the areas of interest.
         For debugging purposes."""
-        for k, v in self.board_map.items():
+        for k, v in self.board_map["players"].items():
             for k2, v2 in v.items():
                 
                 self.window_screenshot_grey=utils.draw_bb_with_coordinates(self.window_screenshot_grey, v2, k+k2)
@@ -409,10 +409,11 @@ class AoF_Client(GGPoker_Client):
     def _intialize_board_map(self) -> dict:
         """Function to initialize the playfield map.
         """
-        board_map = defaultdict(dict)
-        for k, v in PLAYERS_SECTION_3P.items():
+        board_map = defaultdict((dict))
+        for k, v in PLAYERS_SECTION_REL.items():
+            board_map["players"][k] = {}
             for k2, v2 in v.items():
-                board_map[k][k2] = {
+                board_map["players"][k][k2] = {
                     "top_left": (int(v2["top_left"][0] * self.width),
                                     int(v2["top_left"][1] * self.height)),
                     "top_right": (int(v2["top_right"][0] * self.width),
@@ -469,7 +470,7 @@ class AoF_Client(GGPoker_Client):
             """Function to find active players.
             """
             active_players = []
-            for k, v in self.board_map.items():
+            for k, v in self.board_map["players"].items():
                 if self.is_player_active(k):
                     active_players.append(k)
             return active_players
@@ -479,7 +480,7 @@ class AoF_Client(GGPoker_Client):
             """
             bet = None
             sc = self.window_screenshot_grey
-            section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["bet_amount"])
+            section=utils.crop_image_by_bbox(sc, self.board_map["players"][player_i]["bet_amount"])
             #make high contrast for easy detection
             section_hc=utils.make_high_contrast(section, adaptive=False, cutoff=190)
             section_pp=utils.preprocess_for_ocr(section_hc)
@@ -500,7 +501,7 @@ class AoF_Client(GGPoker_Client):
             """
             bet = None
             sc = self.window_screenshot_bgr
-            section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["bet_amount"])
+            section=utils.crop_image_by_bbox(sc, self.board_map["players"][player_i]["bet_amount"])
             #EXPERIMENT: subtract bg from section
             bg=self.assets[f"bet_amount_{player_i}"]
             section_test=section-bg
@@ -527,7 +528,7 @@ class AoF_Client(GGPoker_Client):
         """
         chips = None
         sc = self.window_screenshot_grey
-        section=utils.crop_image_by_bbox(sc, self.board_map[player_i]["chips_count"])
+        section=utils.crop_image_by_bbox(sc, self.board_map["players"][player_i]["chips_count"])
         #make high contrast for easy detection
         section_hc=utils.make_high_contrast(section, adaptive=False, cutoff= 68)
         #remove background
@@ -545,7 +546,7 @@ class AoF_Client(GGPoker_Client):
             """Function to get suited cards of player.
             """
             suited_cards=[]
-            for k, v in self.board_map[player_i].items():
+            for k, v in self.board_map["players"][player_i].items():
                 if k=="card_1" or k=="card_2":
                     section_color=utils.crop_image_by_bbox(self.window_screenshot_bgr, v)
                     is_red=utils.is_color_in_image(section_color, COLOR_RED)
@@ -632,7 +633,8 @@ class AoF_Client(GGPoker_Client):
     def _dealer(self):
         """Helper function to get dealer index.
         """
-        for k, v in self.board_map.items():
+        for k, v in self.board_map["players"].items():
+
             if self._is_asset_in_bbox(self.assets["dealer_button"], v["playfield"], threshold=0.7):   
                 return k
         else:
@@ -643,10 +645,10 @@ class AoF_Client(GGPoker_Client):
         """Function to check if cards are dealt to my player.
         """
         template=self.assets["closed_cards"]
-        if self._is_asset_in_bbox(template, self.board_map["0"]["playfield"], threshold=0.7) == True:
+        if self._is_asset_in_bbox(template, self.board_map["players"]["0"]["playfield"], threshold=0.7) == True:
             return True
-        card_1_crop=utils.crop_image_by_bbox(self.window_screenshot_bgr, self.board_map["0"]["card_1"])
-        card_2_crop=utils.crop_image_by_bbox(self.window_screenshot_bgr, self.board_map["0"]["card_2"])
+        card_1_crop=utils.crop_image_by_bbox(self.window_screenshot_bgr, self.board_map["players"]["0"]["card_1"])
+        card_2_crop=utils.crop_image_by_bbox(self.window_screenshot_bgr, self.board_map["players"]["0"]["card_2"])
 
         fist_dealt=utils.is_color_in_image(card_1_crop, COLOR_WHITE, exact=True) or utils.is_color_in_image(card_2_crop, COLOR_GREY, exact=True)
         second_dealt=utils.is_color_in_image(card_2_crop, COLOR_WHITE, exact=True) or utils.is_color_in_image(card_2_crop, COLOR_GREY, exact=True)
@@ -663,7 +665,7 @@ class AoF_Client(GGPoker_Client):
             return self.my_cards_dealt
         else:
             template=self.assets["closed_cards"]
-            return self._is_asset_in_bbox(template, self.board_map[player_i]["playfield"], threshold=0.6)
+            return self._is_asset_in_bbox(template, self.board_map["players"][player_i]["playfield"], threshold=0.6)
 
     def watch_player_action(self, player_i, wait_n_seconds=10):
         """Function to check if player is acting.
@@ -680,9 +682,9 @@ class AoF_Client(GGPoker_Client):
                 self._update_window_screenshot()
                 if self.is_player_active(player_i) == False:
                     return "fold"         
-                elif self._is_asset_in_bbox(self.assets["call"], self.board_map[player_i]["playfield"], threshold=0.8):
+                elif self._is_asset_in_bbox(self.assets["call"], self.board_map["players"][player_i]["playfield"], threshold=0.8):
                     return "raise"
-                elif self._is_asset_in_bbox(self.assets["all_in"], self.board_map[player_i]["playfield"], threshold=0.8):
+                elif self._is_asset_in_bbox(self.assets["all_in"], self.board_map["players"][player_i]["playfield"], threshold=0.8):
                     return "raise"
                     
                    
@@ -712,8 +714,8 @@ class AoF_Client(GGPoker_Client):
             
         if action in VALID_ACTIONS:
             if click:
-                x=self.board_map["0"][action]["top_left"][0]+self.window_coordinates["top_left"][0]
-                y=self.board_map["0"][action]["top_left"][1]+self.window_coordinates["top_left"][1]
+                x=self.board_map["players"]["0"][action]["top_left"][0]+self.window_coordinates["top_left"][0]
+                y=self.board_map["players"]["0"][action]["top_left"][1]+self.window_coordinates["top_left"][1]
                 utils.human_cursor_click(x=x,y=y, duration=duration)
             else:
                 x=self.window_coordinates["top_left"][0]+20
@@ -753,9 +755,9 @@ class AoF_Client(GGPoker_Client):
                             self.close_window()
                     self._update_window_screenshot()
                     #are my cards dealt ?
-                    flag_player_cards= self._is_asset_in_bbox(self.assets["closed_cards"], self.board_map["0"]["playfield"], threshold=0.8)
+                    flag_player_cards= self._is_asset_in_bbox(self.assets["closed_cards"], self.board_map["players"]["0"]["playfield"], threshold=0.8)
                     #is there an opponent?
-                    flag_opponent =  True in [self.is_player_active(p) if p!="0" else False for p in self.board_map.keys()]
+                    flag_opponent =  True in [self.is_player_active(p) if p!="0" else False for p in self.board_map["players"].keys()]
                     if flag_player_cards & flag_opponent:
                         logging.info("New round started")
                         return True

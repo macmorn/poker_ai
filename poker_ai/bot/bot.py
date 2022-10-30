@@ -220,5 +220,5 @@ def play_round(client : AoF_Client, model: DecisionModel):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.DEBUG)
-    start(models_path="poker_ai/bot/models/aof_avg_round_5_2022_10_06_09_16_11_546798.joblib", scale = 1)
+    start(models_path="poker_ai/bot/models/aof_avg_round_5_2022_10_30_19_15_06_090734.joblib", scale = 1)
     #SHOULD I MAYBE JSUT COMBINE ALL SIMILAR MODELS AND INFERENCE THEM BY n_palyers?
